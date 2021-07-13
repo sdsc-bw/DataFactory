@@ -1,52 +1,97 @@
 #pre_processing
 ## What is preprecessing and why do we need it
-数据的质量，直接决定了模型的预测和泛化能力的好坏。它涉及很多因素，包括：准确性、完整性、一致性、时效性、可信性和解释性。而在真实数据中，我们拿到的数据可能包含了大量的缺失值，可能包含大量的噪音，也可能因为人工录入错误导致有异常点存在，非常不利于算法模型的训练。数据清洗的结果是对各种脏数据进行对应方式的处理，得到标准的、干净的、连续的数据，提供给数据统计、数据挖掘等使用。
-## Common data pre-processing methods
-### 数据导入
-介绍导入要注意的问题
-### 数据审核
-  准确性审核：比如数据不一致，比如岁数和出生年不一致
-  实用性审核：比如数据冗余，包含很多不需要的属性
-  实时性审核
-### 数据清理
-数据清理(data cleaning) 的主要思想是通过填补缺失值、光滑噪声数据，平滑或删除离群点，并解决数据的不一致性来“清理“数据。如果客户认为数据是脏乱的，他们不太会相信基于这些数据的挖掘结果，即输出的结果是不可靠的§
-不同的数据集，存在的问题可能不同。这里针对一些经典的问题进行处理：
-#### 字符数据处理
+The quality of the data directly determines quality of the prediction and generalization ability of the model. It involves many factors, including: accuracy, completeness, consistency, credibility. In the real world, the data we get may contain a lot of missing values, noise, or due to manual entry errors there may be outliers present, which is very unfavorable to the training of algorithmic models. The result of data preproessing is to process all kinds of dirty data in a corresponding way to get standard, clean and continuous data, which can be used for data statistics, data mining, etc.
+## Common data pre-processing process 
+### Data Import
+There are differences in the extraction methods for data of different storage types. Common types include csv, bak, exel, json. Among them the most popular one is csv file.
 
-#### 时间数据处理
+When extracting csv files, there are three points to pay special attention to, they are.
+- Delimiter used 
+- header: row number of the columns name
+- index_col: column used as row label
 
-#### 重复数据
-####  缺失值处理，
-##### 原因 造成的原因是多种多样的
-##### 方法
-    删除变量：如果一个变量的缺失率比较高（80%），且重要性比较低，则可以直接删掉变量
-    填充缺失：根据填充的值的不同又分为定值和统计值填充
-    插值法填充：包括随机插值，多重差补法，热平台插补，拉格朗日插值，牛顿插值等
-    模型填充：使用回归、贝叶斯、随机森林、决策树等模型对缺失数据进行预测
-    哑变量填充
-#### 离群点处理
-##### 原因
-异常值是数据分布的常态，处于特定分布区域或范围之外的数据通常被定义为异常或噪声。异常分为两种：“伪异常”，由于特定的业务运营动作产生，是正常反应业务的状态，而不是数据本身的异常；“真异常”，不是由于特定的业务运营动作产生，而是数据本身分布异常，即离群点。主要有以下检测离群点的方法：
-##### 检测方法
-    3 sigma
-    基于绝对离差中位数（MAD）
-    基于距离（计算复杂度高）
-    基于密度
-    基于聚类
-##### 处理方法
-    根据异常点的数量和影响考虑是否删除记录-》信息损失多
-    log scale
-    平均值或中位值替代异常值
-    选择对异常值鲁棒性较高的模型，比如决策树
-#### 噪音
-噪声是变量的随机误差和方差，是观测点和真实点之间的误差，即 [公式] 。通常的处理办法：对数据进行分箱操作，等频或等宽分箱，然后用每个箱的平均数，中位数或者边界值（不同数据分布，处理方法不同）代替箱中所有的数，起到平滑数据的作用。另外一种做法是，建立该变量和预测变量的回归模型，根据回归系数和预测变量，反解出自变量的近似值。
-### 数据平衡
-### 数据集成
-### 数据变换
-规范化处理：mimmax,zscore, log, Box-Cox 
-离散化处理：等频，等宽(Discretization)，聚类
-稀疏化处理：onehot
-### 数据平衡
-预测类平衡
-属性平衡
-### 属性工程
+### Data Review
+  Correctness review:
+    - data inconsistency: e.g., birthday appears in name feature, age is inconsisten with birthday
+    - data correctness: The data received is different from the data described by the customer: e.g.,asking for acceleration data, but RPM received; asking for monday's data, but Friday's data received.
+
+  Usability review:
+    - Mainly for uselessness(no contribution of the target), duplication, redundancy(data from backup sensor) and unmanageable errors in the data
+
+The above errors contain a large number of subjective factors, so there is no way to be automatically identified by machine learning methods, and researchers are required to review specific data 
+
+### Data Cleaning
+The main idea of data cleaning is to "clean" data by filling in missing values, smoothing noisy data, smoothing or removing outliers, and resolving data inconsistencies. If customers think the data is dirty, they are less likely to trust the results based on this data i.e., the output is unreliable§.
+The problems may vary from dataset to dataset. Some classic problems are summaried here.
+#### Character feature
+Many popular models can't handle character feature, e.g., neural network
+
+To handle these attributes, we generally convert the character data into numeric data via:
+-  <a href = 'https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html'>LabelEncoder</a> or 
+- <a href= 'https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html'>OnehotEncoder</a>
+
+#### Datetime feature
+Date data is usually defaulted to object type when the data is read. Direct encoding will mask the time information, in this case, we need to extract the time information by some other methods:
+- <a href = 'https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.to_datetime.html'>pd.to_datetime</a>
+- <a href = 'https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_timestamp.html'>pd.to_timestamp</a>
+
+####  NA value
+NA value, or missing value is the missing value in the data. When the data with messing value is loaded, the missing value generally appears as NA. Missing values in general can be classified as follows：
+- MAR(Missing at random): Random missing means that the probability of missing data is not related to the missing data itself, but only to the partially observed data. That is, the missing data is not completely random and the missing data of that type depends on other complete variables
+- MCAR(Missing complete at random): Missing data is completely random
+- MNAR(Missing not at random): Missing data is related to the value of the incomplete variable itself, e.g.,Women usually do not want to reveal their age.
+
+There are many reasons for missing values, some of the more classic ones include:
+- Information is temporarily unavailable
+- Data is not recorded, omitted or lost due to human factors, this is the main reason for missing data
+- Data loss due to failure of data acquisition equipment, storage media, transmission media failure
+- The cost of obtaining this information is too high
+- Some objects have one or more attributes that are not available, e.g., the name of the spouse of an unmarried person
+
+The best way to handle NA value is to analyze the cause of generation and deal with them one by one according to the cause. However, this method is time consuming when the amount of missing values is large, and as an alternative, the following methods are generally used to handle missing values.
+- delete feature: If a feature has a relatively high missing rate (80%) and is of low importance, you can simply delete the feature.
+- delete record: Not recommended, unless most of the values of the record are na
+- filling:
+  - filling manually
+  - filling dummy: Filling with special value, e.g., 0, 'other'
+  - filling statistically: Filling in missing values with statistical values, e.g., mean, max, min, mode 
+  - filling interpolation: including random interpolation, multiple differential interpolation, thermal platform interpolation, Lagrangian interpolation, Newton interpolation, etc.
+  - filling model: Prediction of missing data using models such as K-nearest neighbor, regression, Bayesian, random forest, and decision tree. 
+
+#### Outliers
+Outliers are the norm of data distribution, and data that is outside a specific distribution area or range is usually defined as outlier(anomalous or noisy). There are two types of anomalies: 
+- pseudo outliers, which are generated due to specific business operation actions and are a normal response to the state of the business, rather than anomalies in the data itself; 
+- true outliers, which are not generated by specific business operations, but by anomalies in the distribution of the data itself, i.e., outliers. i.e., outliers. 
+
+The main methods for detecting outliers are as follows.
+- 3 sigma/IQR(Interquartile range:0.75 - 0.25)
+- Median absolute deviation: |X-median(X)|/|median(|X-median(X)|)| < threshold
+- Distance based 
+- Density based
+- Clustering based
+
+After finding the outliers, we can handle them with following method:
+    - Consider whether to delete records based on the number and impact of outliers ->  more information loss
+    - log scale
+    - treat as na value
+    - ignore and select a model that is more robust to outliears, such as decision tree
+
+#### Noise
+Noise is the random error and variance of the variables and is the error between the observed and ground true. 
+
+- The usual treatments include: the data are subjected to The data is divided into boxes, equal frequency or equal width, and then the mean, median or boundary value of each box (different data distribution The usual approach is to replace all the numbers in the box with the mean, median, or boundary value of each box (different data distributions, different treatment), which serves to smooth the data. 
+- Another approach is to build a regression model of this variable and predictor variables, and inverse solve for an approximation of the independent variable based on the regression coefficients and predictor variables.
+- Filtering
+### Data balancing 
+When dealing with the classification task, the number of instances for each classification varies, which tends to cause the model to favor one class in learning, thus affecting the performance of the model.
+
+A similar problem exists in regression problems, where more input attributes or clusters are used to classify the data, and if the number of instances of each class is very different, the learning of the model will also be affected.
+- Upsampling or Downsampling randomly
+- Upsampling or Downsampling with <a href = 'https://imbalanced-learn.org/stable/references/index.html#api'>imbalanced-learn</a>
+  - SMOTE
+  - TomekLinks
+### Data Transform
+- normalization：mimmax,zscore, log, Box-Cox 
+- Discretization: equal frequency or width, clustering
+- Sparsification: onehot
+### Feature engineering
