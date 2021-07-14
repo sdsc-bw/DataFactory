@@ -23,7 +23,7 @@ The above errors contain a large number of subjective factors, so there is no wa
 ### Data Cleaning
 The main idea of data cleaning is to "clean" data by filling in missing values, smoothing noisy data, smoothing or removing outliers, and resolving data inconsistencies. If customers think the data is dirty, they are less likely to trust the results based on this data i.e., the output is unreliable§.
 The problems may vary from dataset to dataset. Some classic problems are summaried here.
-#### Character feature
+#### Categorical features
 Many popular models can't handle character feature, e.g., neural network
 
 To handle these attributes, we generally convert the character data into numeric data via:
