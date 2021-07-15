@@ -5,6 +5,8 @@ import seaborn as sns
 
 from abc import ABCMeta, abstractmethod
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.experimental import enable_iterative_imputer
+from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.metrics import roc_auc_score, mean_absolute_error, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
@@ -150,7 +152,7 @@ class DataFactory:
         else:
             return dat_new
     
-    def clean_dat(self, dat: pd.DataFrame) -> pd.DataFrame:
+    def clean_dat(self, dat: pd.DataFrame, strategy: str = 'model') -> pd.DataFrame:
         """deal with nan and inf"""
         if dat.empty:
             return dat
@@ -161,23 +163,29 @@ class DataFactory:
         dat = dat.replace([np.inf, -np.inf], np.nan)
         self.logger.info('    remove columns with half of nan')
         dat = dat.dropna(axis=1, thresh=dat.shape[0] * .5)
-        self.logger.debug('    remove costant columns')
+        self.logger.info('    remove costant columns')
         dat = dat.loc[:, (dat != dat.iloc[0]).any()]
 
         if dat.isna().sum().sum() > 0:
-            logger.debug('Start to fill the columns with nan')
+            self.logger.info('   start to fill the columns with nan')
             # imp = IterativeImputer(max_iter=10, random_state=0)
-            imp = SimpleImputer(missing_values=np.nan, strategy='mean')
+            if strategy == 'model':
+                imp = IterativeImputer(max_iter=10, random_state=0)
+            elif strategy in ['mean', 'median', 'most_frequent', 'constant']:
+                imp = SimpleImputer(missing_values=np.nan, strategy=strategy)
+            else:
+                self.logger.warn(f'    unrecognized strategy {strategy}, use mean instead.')
             # dat = dat.fillna(dat.mean())
             tmp = imp.fit_transform(dat)
             if tmp.shape[1] != dat.shape[1]:
+                self.logger.warn(f'    error appear while fitting, use constant filling instead')
                 tmp = dat.fillna(0)
             dat = pd.DataFrame(tmp, columns=dat.columns, index=dat.index)
         #logger.info('Remove rows with any nan in the end')
         #dat = dat.dropna(axis=0, how='any')
-        self.logger.info('- Finish with Data cleaning, number of inf and nan are for dataset: (%d, %d)' 
+        self.logger.info('- Finish with Data cleaning, number of inf and nan now are: (%d, %d)' 
                      % ((dat == np.inf).sum().sum(), dat.isna().sum().sum()))
-        dat = dat.reset_index(drop=True)
+        #dat = dat.reset_index(drop=True)
         return dat
         
     def evaluate(self, dat: pd.DataFrame, target: pd.Series, cv: int = 5, art = 'C') -> Tuple[float, float]:
