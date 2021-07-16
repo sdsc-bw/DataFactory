@@ -4,11 +4,13 @@ import pandas as pd
 import seaborn as sns
 
 from abc import ABCMeta, abstractmethod
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from scipy.stats import iqr
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.metrics import roc_auc_score, mean_absolute_error, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
@@ -187,7 +189,7 @@ class DataFactory:
                      % ((dat == np.inf).sum().sum(), dat.isna().sum().sum()))
         #dat = dat.reset_index(drop=True)
         return dat
-        
+
     def evaluate(self, dat: pd.DataFrame, target: pd.Series, cv: int = 5, art = 'C') -> Tuple[float, float]:
         """evaluate a data set with random forest"""
         scores = []
@@ -249,6 +251,43 @@ class DataFactory:
                          'rfReg': tfd.RandomForestRegressorTransform(), 'xgbReg': tfd.XGBRegressorTransform()}
         return operators
     
+        
+    def outlier_detection_dataframe(self, df: pd.DataFrame, strategy: str = 'density') -> pd.Series:
+        self.logger.info(f'+ Start to detect outlier for the whole data set with strategy: {strategy}')
+        if strategy == 'high_dimension':
+            out = self._outlier_detection_high_dimension(df)
+        elif strategy == 'density':
+            out = self._outlier_detection_density(df)
+        else:
+            self.logger.info('    unrecognized strategy, used density based strategy instead')
+            out = self._outlier_detection_density(df)
+        self.logger.info(f'- End with outlier detection, {out.sum()} outliers found')
+        return out
+
+    def outlier_detection_feature(self, value: pd.Series) -> pd.Series:
+        self.logger.info(f'+ Start to dectect outlier for given feature {value.name} with 3 IQR strategy')
+        v_iqr = iqr(value)
+        v_mean = value.mean()
+        ceiling = v_mean + 3*v_iqr
+        floor = v_mean - 3*v_iqr
+        out = value.map(lambda x: x>ceiling or x<floor)
+        self.logger.info(f'- End with outlier detection, {out.sum()} outliers found')
+        return out
+
+    def _outlier_detection_high_dimension(self, df: pd.DataFrame) -> pd.Series:
+        """high dimension outlier detection: random forest based"""
+        clf = IsolationForest(n_estimators=20, warm_start=True)
+        out = pd.Series(clf.fit_predict(df), index = df.index)
+        out = out.map(lambda x: x == -1)
+        return out
+
+    def _outlier_detection_density(self, df: pd.DataFrame) -> pd.Series:
+        """density based outlier detection"""
+        clf = LocalOutlierFactor(n_neighbors=20, contamination=0.1)
+        out = pd.Series(clf.fit_predict(df), index = df.index)
+        out = out.map(lambda x: x == -1)
+        return out
+
     def plot_linear_for_columns_in_df(self, df, step, cols, save_path = None, id = None):
         """
         draw linear plot for columns A and B in dataframe df.

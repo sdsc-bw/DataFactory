@@ -82,6 +82,7 @@ Noise is the random error and variance of the variables and is the error between
 - The usual treatments include: the data are subjected to The data is divided into boxes, equal frequency or equal width, and then the mean, median or boundary value of each box (different data distribution The usual approach is to replace all the numbers in the box with the mean, median, or boundary value of each box (different data distributions, different treatment), which serves to smooth the data. 
 - Another approach is to build a regression model of this variable and predictor variables, and inverse solve for an approximation of the independent variable based on the regression coefficients and predictor variables.
 - Filtering
+
 ### Data balancing 
 When dealing with the classification task, the number of instances for each classification varies, which tends to cause the model to favor one class in learning, thus affecting the performance of the model.
 
@@ -90,6 +91,7 @@ A similar problem exists in regression problems, where more input attributes or 
 - Upsampling or Downsampling with <a href = 'https://imbalanced-learn.org/stable/references/index.html#api'>imbalanced-learn</a>
   - SMOTE
   - TomekLinks
+  
 ### Data Transform
 - normalization：mimmax,zscore, log, Box-Cox 
 - Discretization: equal frequency or width, clustering
