@@ -4,6 +4,9 @@ import pandas as pd
 import seaborn as sns
 
 from abc import ABCMeta, abstractmethod
+from imblearn.over_sampling import *
+from imblearn.under_sampling import *
+from imblearn.combine import * 
 from scipy.stats import iqr
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest
 from sklearn.experimental import enable_iterative_imputer
@@ -344,6 +347,70 @@ class DataFactory:
                 os.mkdir(save_path)
             plt.savefig(save_path+ '/' +'_'.join(cols)+ '_' + str(id), transparent = True)
     
+    def sampling_up(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'SMOTE', random_state: int = None) -> Tuple[pd.DataFrame, pd.Series]:
+        """strategy should be one of ['smote', 'random', 'borderline', 'adasyn', 'kmeanssmote']"""
+        self.logger.info(f'+ Start to apply upsampling strategy: {strategy}')
+        if strategy == 'smote':
+            usa = SMOTE(sampling_strategy='auto', random_state=random_state)
+        elif strategy == 'random':
+            usa = RandomOverSampler(sampling_strategy='auto', random_state=random_state)
+        elif strategy == 'borderline':
+            usa = BorderlineSMOTE(sampling_strategy='auto', random_state=random_state)
+        elif strategy == 'adasyn':
+            usa = ADASYN(sampling_strategy='auto', random_state=random_state)
+        elif strategy == 'kmeanssmote':
+            usa = KMeansSMOTE(sampling_strategy='auto', random_state=random_state)
+        else:
+            logger.warn('    Unrecognized upsampling strategy, use SMOTE instead')
+            usa = SMOTE(sampling_strategy='auto', random_state=random_state)
+        res_x, res_y = usa.fit_resample(dfx, dfy)
+        self.logger.info('- End with upsampling')
+        return res_x, res_y
+
+    def sampling_down(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'SMOTE', random_state: int = None) -> Tuple[pd.DataFrame, pd.Series]:
+        """strategy should be one of ['cluster', 'random', 'nearmiss1', 'nearmiss2', 'nearmiss3', 'tomek', 'enn', 'repeatenn', 'allknn', 'condensednn']"""
+        self.logger.info(f'+ Start to apply downsampling strategy: {strategy}')
+        if strategy == 'cluster':
+            dsa = ClusterCentroids(sampling_strategy = 'auto', random_state = random_state)
+        elif strategy == 'random':
+            dsa = RandomUnderSampler(sampling_strategy = 'auto', random_state = random_state)
+        elif strategy == 'nearmiss1':
+            dsa = NearMiss(sampling_strategy = 'auto', version = 1)
+        elif strategy == 'nearmiss2':
+            dsa = NearMiss(sampling_strategy = 'auto', version = 2)
+        elif strategy == 'nearmiss3':
+            dsa = NearMiss(sampling_strategy = 'auto', version = 3)
+        elif strategy == 'tomek':
+            dsa = TomekLinks(sampling_strategy = 'auto')
+        elif strategy == 'enn':
+            dsa = EditedNearestNeighbours(sampling_strategy = 'auto')
+        elif strategy == 'repeatenn':
+            dsa = RepeatedEditedNearestNeighbours(sampling_strategy = 'auto')
+        elif strategy == 'allknn':
+            dsa = AllKNN(sampling_strategy = 'auto')
+        elif strategy == 'condensednn':
+            dsa = CondensedNearestNeighbour(sampling_strategy = 'auto', random_state = random_state)
+        else:
+            self.logger.warn('    Unrecognized downsampling strategy, use TOMEK instead')
+            dsa = TomekLinks(sampling_strategy = 'auto')
+        res_x, res_y = dsa.fit_resample(dfx, dfy)
+        self.logger.info('- End with downsampling')
+        return res_x, res_y
+
+    def sampling_combine(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'SMOTE', random_state: int = None) -> Tuple[pd.DataFrame, pd.Series]:
+        """strategy should be one of ['smoteenn', 'smotetomek']"""
+        self.logger.info(f'+ Start to apply combine sampling strategy: {strategy}')
+        if strategy == 'smoteenn':
+            csa = SMOTEENN(sampling_strategy = 'auto', random_state = random_state)
+        elif strategy == 'smotetomek':
+            csa = SMOTETomek(sampling_strategy = 'auto', random_state = random_state)
+        else:
+            self.logger.warn('    Unrecognized downsampling strategy, use SMOTEENN instead')
+            csa = SMOTEENN(sampling_strategy = 'auto', random_state = random_state)
+        res_x, res_y = csa.fit_resample(dfx, dfy)
+        self.logger.info('- End with combine sampling')
+        return res_x, res_y
+
     def _relative_absolute_error(self, pred, y):
         dis = abs((pred-y)).sum()
         dis2 = abs((y.mean() - y)).sum()
