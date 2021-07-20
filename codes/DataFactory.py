@@ -364,6 +364,9 @@ class DataFactory:
             logger.warn('    Unrecognized upsampling strategy, use SMOTE instead')
             usa = SMOTE(sampling_strategy='auto', random_state=random_state)
         res_x, res_y = usa.fit_resample(dfx, dfy)
+        if type(res_x) == np.ndarray:
+            res_x = pd.DataFrame(res_x, columns = dfx.columns)
+            res_y = pd.DataFrame(res_y, columns = dfy.columns)
         self.logger.info('- End with upsampling')
         return res_x, res_y
 
@@ -394,6 +397,9 @@ class DataFactory:
             self.logger.warn('    Unrecognized downsampling strategy, use TOMEK instead')
             dsa = TomekLinks(sampling_strategy = 'auto')
         res_x, res_y = dsa.fit_resample(dfx, dfy)
+        if type(res_x) == np.ndarray:
+            res_x = pd.DataFrame(res_x, columns = dfx.columns)
+            res_y = pd.DataFrame(res_y, columns = dfy.columns)
         self.logger.info('- End with downsampling')
         return res_x, res_y
 
@@ -408,6 +414,9 @@ class DataFactory:
             self.logger.warn('    Unrecognized downsampling strategy, use SMOTEENN instead')
             csa = SMOTEENN(sampling_strategy = 'auto', random_state = random_state)
         res_x, res_y = csa.fit_resample(dfx, dfy)
+        if type(res_x) == np.ndarray:
+            res_x = pd.DataFrame(res_x, columns = dfx.columns)
+            res_y = pd.DataFrame(res_y, columns = dfy.columns)
         self.logger.info('- End with combine sampling')
         return res_x, res_y
 
