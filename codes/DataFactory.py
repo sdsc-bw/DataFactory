@@ -366,7 +366,7 @@ class DataFactory:
         res_x, res_y = usa.fit_resample(dfx, dfy)
         if type(res_x) == np.ndarray:
             res_x = pd.DataFrame(res_x, columns = dfx.columns)
-            res_y = pd.DataFrame(res_y, columns = dfy.columns)
+            res_y = pd.Series(res_y, name = dfy.name)
         self.logger.info('- End with upsampling')
         return res_x, res_y
 
@@ -399,7 +399,7 @@ class DataFactory:
         res_x, res_y = dsa.fit_resample(dfx, dfy)
         if type(res_x) == np.ndarray:
             res_x = pd.DataFrame(res_x, columns = dfx.columns)
-            res_y = pd.DataFrame(res_y, columns = dfy.columns)
+            res_y = pd.Series(res_y, name = dfy.name)
         self.logger.info('- End with downsampling')
         return res_x, res_y
 
@@ -416,7 +416,7 @@ class DataFactory:
         res_x, res_y = csa.fit_resample(dfx, dfy)
         if type(res_x) == np.ndarray:
             res_x = pd.DataFrame(res_x, columns = dfx.columns)
-            res_y = pd.DataFrame(res_y, columns = dfy.columns)
+            res_y = pd.Series(res_y, name = dfy.name)
         self.logger.info('- End with combine sampling')
         return res_x, res_y
 
