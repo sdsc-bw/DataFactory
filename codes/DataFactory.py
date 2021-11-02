@@ -15,6 +15,7 @@ from sklearn.metrics import roc_auc_score, mean_absolute_error, accuracy_score, 
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+#import autosklearn.classification
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
 import transforms as tfd
@@ -419,6 +420,28 @@ class DataFactory:
             res_y = pd.Series(res_y, name = dfy.name)
         self.logger.info('- End with combine sampling')
         return res_x, res_y
+    
+#    def finetune(dat:pd.DataFrame, target: pd.Series, strategy: str='auto-sklearn'):
+#        """strategy should be one of ['auto-sklearn']"""
+#        self.logger.info(f'+ Start to finetune strategy: {strategy}')
+#        if strategy == 'auto-sklearn'
+#            X_train, X_test, y_train, y_test = train_test_split(dat, target)
+#            cls = autosklearn.classification.AutoSklearnClassifier()
+#            cls.fit(X_train, y_train)
+#            return cls
+
+    def preprocess_and_split(self, dat: pd.DataFrame, y_col: str) -> Tuple[np.array, np.array, np.array, np.array]:
+        """Preprocesses data and splits data into trainings and test set"""
+        self.logger.info(f'Remove columns with nan values of target feature {y_col}')
+        df = dat.dropna(subset=[y_col])
+        x_columns = list(df.columns)
+        x_columns.remove(y_col)
+        dfx = df[x_columns]
+        dfy = df[y_col]
+        dfx, dfy = self.categorical_feature_encoding(dfx, dfy, k_term=False)
+        dfx = self.clean_dat(dfx)
+        X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
+        return X_train, X_test, y_train, y_test
 
     def _relative_absolute_error(self, pred, y):
         dis = abs((pred-y)).sum()
