@@ -1,6 +1,106 @@
 ./images_pp
-./feature_engineering/.ipynb_checkpoints
-./preprocessing/.ipynb_checkpoints
-./model_selection/.ipynb_checkpoints
-./finetuning/.ipynb_checkpoints
-./codes/__pycache__
+Skip to content
+Search or jump to…
+Pull requests
+Issues
+Marketplace
+Explore
+ 
+@nischa564 
+jupyter
+/
+notebook
+Public
+318
+8.6k3.6k
+Code
+Issues
+2k
+Pull requests
+46
+Actions
+Projects
+8
+Security
+2
+Insights
+notebook/.gitignore
+@afshin
+afshin Use Jupyter Releaser (#6048)
+…
+Latest commit c19323d on 12 May
+ History
+ 21 contributors
+@minrk@takluyver@jdfreder@willingc@blink1073@joshuazeltser@afshin@fperez@ellisonbg@Carreau@github-actions@telamonian
+58 lines (52 sloc)  777 Bytes
+   
+MANIFEST
+build
+dist
+_build
+docs/man/*.gz
+docs/source/api/generated
+docs/source/config.rst
+docs/gh-pages
+notebook/i18n/*/LC_MESSAGES/*.mo
+notebook/i18n/*/LC_MESSAGES/nbjs.json
+notebook/static/components
+notebook/static/style/*.min.css*
+notebook/static/*/js/built/
+notebook/static/*/built/
+notebook/static/built/
+notebook/static/*/js/main.min.js*
+notebook/static/lab/*bundle.js
+node_modules
+*.py[co]
+__pycache__
+*.egg-info
+*~
+*.bak
+.ipynb_checkpoints
+.tox
+.DS_Store
+\#*#
+.#*
+.coverage
+.pytest_cache
+src
+
+*.swp
+*.map
+.idea/
+Read the Docs
+config.rst
+*.iml
+/.project
+/.pydevproject
+
+package-lock.json
+geckodriver.log
+*.iml
+
+# jetbrains IDE stuff
+*.iml
+.idea/
+
+# ms IDE stuff
+*.code-workspace
+.history
+.vscode
+
+# copied changelog
+docs/source/changelog.md
+
+.jupyter_releaser_checkout
+© 2021 GitHub, Inc.
+Terms
+Privacy
+Security
+Status
+Docs
+Contact GitHub
+Pricing
+API
+Training
+Blog
+About

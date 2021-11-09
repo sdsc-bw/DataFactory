@@ -8,14 +8,15 @@ from imblearn.over_sampling import *
 from imblearn.under_sampling import *
 from imblearn.combine import * 
 from scipy.stats import iqr
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest, AdaBoostClassifier
 from sklearn import tree
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.metrics import roc_auc_score, mean_absolute_error, accuracy_score, f1_score
-from sklearn.model_selection import train_test_split
-from sklearn.neighbors import LocalOutlierFactor
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.neighbors import LocalOutlierFactor, KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.svm import SVC, SVR
 #import autosklearn.classification
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
@@ -169,7 +170,7 @@ class DataFactory:
         if k_term:
             dat_new = pd.concat([dat_new, dat_kterm], axis = 1)
         self.logger.info('...End with categorical feature transformation')
-        if dat_y is not None:
+        if dfy is not None:
             return dat_new, out_y
         else:
             return dat_new
@@ -197,7 +198,7 @@ class DataFactory:
         dat = dat.loc[:, (dat != dat.iloc[0]).any()]
 
         if dat.isna().sum().sum() > 0:
-            self.logger.info('Start to fill the columns with nan...')
+            self.logger.info('Start to fill the columns with NAN-values...')
             # imp = IterativeImputer(max_iter=10, random_state=0)
             if strategy == 'model':
                 imp = IterativeImputer(max_iter=10, random_state=0)
@@ -561,7 +562,7 @@ class DataFactory:
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
         return X_train, X_test, y_train, y_test
     
-    def train_and_evaluate(self, dfx: pd.DataFrame, dfy: pd.Series, cv: int = 5, model='decision_tree', mtype='C'):
+    def train_and_evaluate(self, dfx: pd.DataFrame, dfy: pd.Series = None, cv: int = 5, model='decision_tree', mtype='C', param_grid: Dict =None, verbose: int = 0):
         """Trains and evaluates a given model.
         
         Keyword arguments:
@@ -575,45 +576,92 @@ class DataFactory:
         mean -- mean of scores
         var -- variance of scores
         """
-        scores = []
-        for i in range(cv):
-            X_train, X_test, y_train, y_test = train_test_split(dfx, dfy, random_state=i)
-            if model == 'decision_tree' and mtype == 'C':
-                m = tree.DecisionTreeClassifier(random_state=i)
-                m.fit(X_train, y_train)
-                y_pred = m.predict(X_test)
-                score = f1_score(y_test, y_pred, average='weighted')
-            elif model == 'decision_tree' and mtype == 'R':
-                m = tree.DecisionTreeRegressor(random_state=i)
-                m.fit(X_train, y_train)
-                y_pred = m.predict(X_test)
-                score = 1 - self._relative_absolute_error(y_pred, y_test)
-            elif model == 'random_forest' and mtype == 'C':
-                m = RandomForestClassifier(random_state=i)
-                m.fit(X_train, y_train)
-                y_pred = m.predict(X_test)
-                score = f1_score(y_test, y_pred, average='weighted')
-            elif model == 'random_forest' and mtype == 'R':
-                m = RandomForestClassifier(random_state=i)
-                m.fit(X_train, y_train)
-                y_pred = m.predict(X_test)
-                score = 1 - self._relative_absolute_error(y_pred, y_test)
-            elif m_type == 'C':
-                self.logger.info('Unrecognized classifier. Use decision tree instead')
-                m = tree.DecisionTreeClassifier(random_state=i)
-                m.fit(X_train, y_train)
-                y_pred = m.predict(X_test)
-                score = f1_score(y_test, y_pred, average='weighted')
-            elif m_type == 'R':
-                self.logger.info('Unrecognized regressor. Use decision tree instead')
-                m = tree.DecisionTreeRegressor(random_state=i)
-                m.fit(X_train, y_train)
-                y_pred = m.predict(X_test)
-                score = 1 - self._relative_absolute_error(y_pred, y_test)
+        self.logger.info(f'Start grid search for best parameters...')
+        X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
+        if model == 'decision_tree':
+            if param_grid is None:
+                param_grid = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+                
+            if mtype=='C':
+                m = tree.DecisionTreeClassifier()
+            elif mtype=='R':
+                m = tree.DecisionTreeRegressor()
             else:
                 self.logger.error('Unknown type of model')
-            scores.append(score)
-        return np.mean(scores), np.std(scores)
+        elif model == 'random_forest':
+            if param_grid is None:
+                param_grid = {'max_depth': [3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10], 'n_estimators': [50, 100, 200]}
+                
+            if mtype=='C':
+                m = RandomForestClassifier()
+            elif mtype=='R':
+                m = RandomForestRegressor()
+            else:
+                self.logger.error('Unknown type of model')
+        elif model == 'adaboost':
+            if param_grid is None:
+                param_grid = {'n_estimators': [50, 100, 200], 'learning_rate':[0.001,0.01,.1]}
+                
+            if mtype=='C':
+                m = AdaBoostClassifier()
+            elif mtype=='R':
+                m = AdaBoostRegressor()
+            else:
+                self.logger.error('Unknown type of model')
+        elif model == 'knn':
+            if param_grid is None:
+                param_grid = {'n_neighbors': range(1, 30), 'weights':["uniform", "distance"]}
+                
+            if mtype=='C':
+                m = KNeighborsClassifier()
+            elif mtype=='R':
+                m = KNeighborsRegressor()
+            else:
+                self.logger.error('Unknown type of model')     
+        elif model == 'gaussian_nb':
+            if param_grid is None:
+                param_grid = {'var_smoothing': np.logspace(0,-9, num=100)}
+                
+            if mtype=='C':
+                m = GaussianNB()
+            else:
+                self.logger.error('Unknown type of model')
+        elif model == 'svm':
+            if param_grid is None:
+                param_grid = {'C': [0.1,1, 10, 100], 'gamma': [1,0.1,0.01,0.001],'kernel': ['linear', 'rbf']}
+                
+            if mtype=='C':
+                m = SVC(gamma='scale')
+            elif mtype =='R':
+                m = SVR()
+            else:
+                self.logger.error('Unknown type of model')    
+        elif m_type == 'C':
+            if param_grid is None:
+                param_grid = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+                
+            m = tree.DecisionTreeClassifier()
+        elif m_type == 'R':
+            self.logger.info('Unrecognized regressor. Use decision tree instead')
+            if param_grid is None:
+                param_grid = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+                
+            m = tree.DecisionTreeRegressor()
+        else:
+            self.logger.error('Unknown type of model')
+          
+        grid = GridSearchCV(m, param_grid=param_grid, refit=True, cv=cv, verbose=verbose, n_jobs=-1)
+        grid.fit(X_train, y_train)
+        best_model = grid.best_estimator_
+        y_pred = best_model.predict(X_test)
+        if mtype=='C':
+            score = f1_score(y_test, y_pred, average='weighted')
+        else:
+            score = 1 - self._relative_absolute_error(y_pred, y_test)
+        
+        self.logger.info(f'...End grid search')
+        self.logger.info(f'Best parameters are: {grid.best_params_}')
+        return best_model, score
 
     def _relative_absolute_error(self, pred, y):
         dis = abs((pred-y)).sum()
