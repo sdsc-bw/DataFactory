@@ -1,5 +1,6 @@
-./images_pp/
-./feature_engineering/.ipynb_checkpoints/
-./preprocessing/.ipynb_checkpoints/
-./model_selection/.ipynb_checkpoints/
-./finetuning/.ipynb_checkpoints/
+./images_pp
+./feature_engineering/.ipynb_checkpoints
+./preprocessing/.ipynb_checkpoints
+./model_selection/.ipynb_checkpoints
+./finetuning/.ipynb_checkpoints
+./codes/__pycache__
