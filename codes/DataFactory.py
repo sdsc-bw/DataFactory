@@ -8,8 +8,8 @@ from imblearn.over_sampling import *
 from imblearn.under_sampling import *
 from imblearn.combine import * 
 from scipy.stats import iqr
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest, AdaBoostClassifier
-from sklearn import tree
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest, AdaBoostClassifier, HistGradientBoostingClassifier, HistGradientBoostingRegressor
+from sklearn import tree, linear_model
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.metrics import roc_auc_score, mean_absolute_error, accuracy_score, f1_score
@@ -576,7 +576,7 @@ class DataFactory:
         mean -- mean of scores
         var -- variance of scores
         """
-        self.logger.info(f'Start grid search for best parameters...')
+        self.logger.info(f'Start grid search for best parameters of: {model}...')
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
         if model == 'decision_tree':
             if param_grid is None:
@@ -590,7 +590,7 @@ class DataFactory:
                 self.logger.error('Unknown type of model')
         elif model == 'random_forest':
             if param_grid is None:
-                param_grid = {'max_depth': [3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10], 'n_estimators': [50, 100, 200]}
+                param_grid = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10], 'n_estimators': [50, 100, 200]}
                 
             if mtype=='C':
                 m = RandomForestClassifier()
@@ -618,6 +618,16 @@ class DataFactory:
                 m = KNeighborsRegressor()
             else:
                 self.logger.error('Unknown type of model')     
+        elif model == 'gbdt':
+            if param_grid is None:
+                param_grid = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'learning_rate':[0.001,0.01,.1], 'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4]}
+                
+            if mtype=='C':
+                m = HistGradientBoostingClassifier()
+            elif mtype=='R':
+                m = HistGradientBoostingRegressor()
+            else:
+                self.logger.error('Unknown type of model')                  
         elif model == 'gaussian_nb':
             if param_grid is None:
                 param_grid = {'var_smoothing': np.logspace(0,-9, num=100)}
@@ -635,7 +645,15 @@ class DataFactory:
             elif mtype =='R':
                 m = SVR()
             else:
-                self.logger.error('Unknown type of model')    
+                self.logger.error('Unknown type of model')  
+        elif model == 'bayesian':
+            if param_grid is None:
+                param_grid = {'alpha_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'alpha_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]}
+                
+            if mtype=='R':
+                m = BayesianRidge()
+            else:
+                self.logger.error('Unknown type of model')                 
         elif m_type == 'C':
             if param_grid is None:
                 param_grid = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
