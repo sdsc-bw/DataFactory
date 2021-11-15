@@ -1,7 +1,7 @@
-#pre_processing
-## What is preprecessing and why do we need it
-The quality of the data directly determines quality of the prediction and generalization ability of the model. It involves many factors, including: accuracy, completeness, consistency, credibility. In the real world, the data we get may contain a lot of missing values, noise, or due to manual entry errors there may be outliers present, which is very unfavorable to the training of algorithmic models. The result of data preproessing is to process all kinds of dirty data in a corresponding way to get standard, clean and continuous data, which can be used for data statistics, data mining, etc.
-## Common data pre-processing process 
+# Preprocessing
+## What is preprocessing
+The quality of the data directly determines quality of the prediction and generalization ability of the model. It involves many factors, including: accuracy, completeness, consistency, credibility. In the real world, the data we get may contain a lot of missing values, noise, or due to manual entry errors there may be outliers present, which is very unfavorable to the training of algorithmic models. The result of data preprocessing is to process all kinds of dirty data in a corresponding way to get standard, clean and continuous data, which can be used for data statistics, data mining, etc.
+## Common data preprocessing process 
 ### Data Import
 There are differences in the extraction methods for data of different storage types. Common types include csv, bak, exel, json. Among them the most popular one is csv file.
 
