@@ -37,16 +37,16 @@ def compare_models(models:list):
         _, scores_wine[m] = datafactory.train_and_evaluate(dfx_wine, dfy_wine, strategy='random', model=m, mtype="C")
     
     # load covertype dataset
-    #data = fetch_covtype()
-    #df_covtype = pd.DataFrame(data.data, columns=data.feature_names)
-    #df_covtype['type'] = pd.Series(data.target)
-    #dfx_covertype, dfy_covertype = datafactory.preprocess(df_covtype, y_col='type')
-    #scores_covtype = dict() 
-    #for m in models:
-    #    _, scores_covtype[m] = datafactory.train_and_evaluate(dfx_covertype, dfy_covertype, model=m, mtype="C")
+    data = fetch_covtype()
+    df_covtype = pd.DataFrame(data.data, columns=data.feature_names)
+    df_covtype['type'] = pd.Series(data.target)
+    dfx_covertype, dfy_covertype = datafactory.preprocess(df_covtype, y_col='type')
+    scores_covtype = dict() 
+    for m in models:
+        _, scores_covtype[m] = datafactory.train_and_evaluate(dfx_covertype, dfy_covertype, strategy='random', model=m, mtype="C")
     
-    #df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset', 'Covertype Dataset'])
-    df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset'])
+    df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset', 'Covertype Dataset'])
+    #df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset'])
     for m in models:
         if m == 'decision_tree':
             m_str = 'Decision Tree'
@@ -57,7 +57,7 @@ def compare_models(models:list):
         elif m == 'gbdt':
             m_str = 'GBDT'
             
-        #df = df.append({'Models': m_str, 'Titanic Dataset': scores_titanic[m], 'Iris Dataset': scores_iris[m], 'Wine Dataset': scores_wine[m], 'Covertype Dataset': scores_covtype[m]}, ignore_index=True)
-        df = df.append({'Models': m_str, 'Titanic Dataset': scores_titanic[m], 'Iris Dataset': scores_iris[m], 'Wine Dataset': scores_wine[m]}, ignore_index=True)
+        df = df.append({'Models': m_str, 'Titanic Dataset': scores_titanic[m], 'Iris Dataset': scores_iris[m], 'Wine Dataset': scores_wine[m], 'Covertype Dataset': scores_covtype[m]}, ignore_index=True)
+        #df = df.append({'Models': m_str, 'Titanic Dataset': scores_titanic[m], 'Iris Dataset': scores_iris[m], 'Wine Dataset': scores_wine[m]}, ignore_index=True)
     return df
     
