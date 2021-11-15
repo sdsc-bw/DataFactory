@@ -13,11 +13,12 @@ from sklearn import tree, linear_model
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.metrics import roc_auc_score, mean_absolute_error, accuracy_score, f1_score
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
 from sklearn.neighbors import LocalOutlierFactor, KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.svm import SVC, SVR
-#import autosklearn.classification
+#import autosklearn.classification # requires linux
+from hyperopt import hp
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
 import transforms as tfd
@@ -562,25 +563,26 @@ class DataFactory:
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
         return X_train, X_test, y_train, y_test
     
-    def train_and_evaluate(self, dfx: pd.DataFrame, dfy: pd.Series = None, cv: int = 5, model='decision_tree', mtype='C', param_grid: Dict =None, verbose: int = 0):
+    def train_and_evaluate(self, dfx: pd.DataFrame, dfy: pd.Series = None, strategy: str = 'grid', cv: int = 5, model='decision_tree', mtype='C', params: Dict =None, verbose: int = 0):
         """Trains and evaluates a given model.
         
         Keyword arguments:
         dfx -- data
         dfy -- labels
+        strategy -- search strategy of hyperparameters should be in ['grid', 'random']
         cv -- number of model instances
         model -- model should be in ['decision_tree', 'random_forest']
         mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
 
         Output:
-        mean -- mean of scores
-        var -- variance of scores
+        best_model -- the model with the highest score
+        score -- score of the best model
         """
-        self.logger.info(f'Start grid search for best parameters of: {model}...')
+        self.logger.info(f'Start search for best parameters of: {model}...')
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
         if model == 'decision_tree':
-            if param_grid is None:
-                param_grid = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+            if params is None:
+                params = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
                 
             if mtype=='C':
                 m = tree.DecisionTreeClassifier()
@@ -589,8 +591,8 @@ class DataFactory:
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'random_forest':
-            if param_grid is None:
-                param_grid = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10], 'n_estimators': [50, 100, 200]}
+            if params is None:
+                params = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10], 'n_estimators': [50, 100, 200]}
                 
             if mtype=='C':
                 m = RandomForestClassifier()
@@ -599,8 +601,8 @@ class DataFactory:
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'adaboost':
-            if param_grid is None:
-                param_grid = {'n_estimators': [50, 100, 200], 'learning_rate':[0.001,0.01,.1]}
+            if params is None:
+                params = {'n_estimators': [50, 100, 200], 'learning_rate':[0.001,0.01,.1]}
                 
             if mtype=='C':
                 m = AdaBoostClassifier()
@@ -609,8 +611,8 @@ class DataFactory:
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'knn':
-            if param_grid is None:
-                param_grid = {'n_neighbors': range(1, 30), 'weights':["uniform", "distance"]}
+            if params is None:
+                params = {'n_neighbors': range(1, 30), 'weights':["uniform", "distance"]}
                 
             if mtype=='C':
                 m = KNeighborsClassifier()
@@ -619,8 +621,8 @@ class DataFactory:
             else:
                 self.logger.error('Unknown type of model')     
         elif model == 'gbdt':
-            if param_grid is None:
-                param_grid = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'learning_rate':[0.001,0.01,.1], 'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4]}
+            if params is None:
+                params = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'learning_rate':[0.001,0.01,.1], 'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4]}
                 
             if mtype=='C':
                 m = HistGradientBoostingClassifier()
@@ -629,16 +631,16 @@ class DataFactory:
             else:
                 self.logger.error('Unknown type of model')                  
         elif model == 'gaussian_nb':
-            if param_grid is None:
-                param_grid = {'var_smoothing': np.logspace(0,-9, num=100)}
+            if params is None:
+                params = {'var_smoothing': np.logspace(0,-9, num=100)}
                 
             if mtype=='C':
                 m = GaussianNB()
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'svm':
-            if param_grid is None:
-                param_grid = {'C': [0.1,1, 10, 100], 'gamma': [1,0.1,0.01,0.001],'kernel': ['linear', 'rbf']}
+            if params is None:
+                params = {'C': [0.1,1, 10, 100], 'gamma': [1,0.1,0.01,0.001],'kernel': ['linear', 'rbf']}
                 
             if mtype=='C':
                 m = SVC(gamma='scale')
@@ -647,28 +649,31 @@ class DataFactory:
             else:
                 self.logger.error('Unknown type of model')  
         elif model == 'bayesian':
-            if param_grid is None:
-                param_grid = {'alpha_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'alpha_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]}
+            if params is None:
+                params = {'alpha_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'alpha_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]}
                 
             if mtype=='R':
                 m = BayesianRidge()
             else:
                 self.logger.error('Unknown type of model')                 
         elif m_type == 'C':
-            if param_grid is None:
-                param_grid = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+            if params is None:
+                params = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
                 
             m = tree.DecisionTreeClassifier()
         elif m_type == 'R':
             self.logger.info('Unrecognized regressor. Use decision tree instead')
-            if param_grid is None:
-                param_grid = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+            if params is None:
+                params = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
                 
             m = tree.DecisionTreeRegressor()
         else:
             self.logger.error('Unknown type of model')
           
-        grid = GridSearchCV(m, param_grid=param_grid, refit=True, cv=cv, verbose=verbose, n_jobs=-1)
+        if strategy == 'grid':
+            grid = GridSearchCV(m, param_grid=params, refit=True, cv=cv, verbose=verbose, n_jobs=-1)
+        elif strategy == 'random':
+            grid = RandomizedSearchCV(m, param_distributions=params, refit=True, cv=cv, verbose=verbose, n_jobs=-1)
         grid.fit(X_train, y_train)
         best_model = grid.best_estimator_
         y_pred = best_model.predict(X_test)
@@ -677,9 +682,30 @@ class DataFactory:
         else:
             score = 1 - self._relative_absolute_error(y_pred, y_test)
         
-        self.logger.info(f'...End grid search')
+        self.logger.info(f'...End search')
         self.logger.info(f'Best parameters are: {grid.best_params_}')
         return best_model, score
+    
+    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'auto_sklearn', mtype='C'):
+        X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(dfx, dfy)
+        if strategy == 'auto_sklearn':
+            if mtype == 'C':
+                automl = autosklearn.classification.AutoSklearnClassifier()
+            elif mtype == 'R':
+                automl = autosklearn.classification.AutoSklearnRegressor()
+            else:
+                self.logger.error('Unknown type of model')
+            automl.fit(X_train, y_train)
+            y_pred = automl.predict(X_test)
+        
+        if mtype == 'C':
+            score = f1_score(y_test, y_pred, average='weighted')
+        elif mtype == 'R':
+            score = 1 - self._relative_absolute_error(y_pred, y_test)
+        else:
+            self.logger.error('Unknown type of model')
+        return score
+            
 
     def _relative_absolute_error(self, pred, y):
         dis = abs((pred-y)).sum()

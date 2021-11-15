@@ -16,7 +16,7 @@ def compare_models(models:list):
     dfx_titanic, dfy_titanic = datafactory.preprocess(df_titanic, y_col='survived')
     scores_titanic = dict() 
     for m in models:
-        _, scores_titanic[m] = datafactory.train_and_evaluate(dfx_titanic, dfy_titanic, model=m, mtype="C")
+        _, scores_titanic[m] = datafactory.train_and_evaluate(dfx_titanic, dfy_titanic, strategy='random', model=m,  mtype="C")
     
     # load iris dataset
     data = load_iris()
@@ -25,7 +25,7 @@ def compare_models(models:list):
     dfx_iris, dfy_iris = datafactory.preprocess(df_iris, y_col='species')
     scores_iris = dict() 
     for m in models:
-        _, scores_iris[m] = datafactory.train_and_evaluate(dfx_iris, dfy_iris, model=m, mtype="C")
+        _, scores_iris[m] = datafactory.train_and_evaluate(dfx_iris, dfy_iris, strategy='random', model=m, mtype="C")
     
     # load wine dataset
     data = load_wine()
@@ -34,7 +34,7 @@ def compare_models(models:list):
     dfx_wine, dfy_wine = datafactory.preprocess(df_wine, y_col='class')
     scores_wine = dict() 
     for m in models:
-        _, scores_wine[m] = datafactory.train_and_evaluate(dfx_wine, dfy_wine, model=m, mtype="C")
+        _, scores_wine[m] = datafactory.train_and_evaluate(dfx_wine, dfy_wine, strategy='random', model=m, mtype="C")
     
     # load covertype dataset
     #data = fetch_covtype()
