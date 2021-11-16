@@ -21,7 +21,9 @@ from sklearn.svm import SVC, SVR
 from hyperopt import hp
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
+import operator
 import transforms as tfd
+import std_search_space as std
 import logging
 
 class DataFactory:
@@ -563,7 +565,8 @@ class DataFactory:
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
         return X_train, X_test, y_train, y_test
     
-    def train_and_evaluate(self, dfx: pd.DataFrame, dfy: pd.Series = None, strategy: str = 'grid', cv: int = 5, model='decision_tree', mtype='C', params: Dict =None, verbose: int = 0):
+    # TODO add model to params
+    def train_and_evaluate(self, dfx: pd.DataFrame, dfy: pd.Series = None, strategy: str = 'grid', cv: int = 5, model='decision_tree', mtype='C', params: Dict = None):
         """Trains and evaluates a given model.
         
         Keyword arguments:
@@ -571,7 +574,7 @@ class DataFactory:
         dfy -- labels
         strategy -- search strategy of hyperparameters should be in ['grid', 'random']
         cv -- number of model instances
-        model -- model should be in ['decision_tree', 'random_forest']
+        model -- model should be in ['decision_tree', 'random_forest', 'adaboost', 'knn', 'gbdt', 'gaussian_nb' 'svm', 'bayesian']
         mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
 
         Output:
@@ -580,95 +583,10 @@ class DataFactory:
         """
         self.logger.info(f'Start search for best parameters of: {model}...')
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
-        if model == 'decision_tree':
-            if params is None:
-                params = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
-                
-            if mtype=='C':
-                m = tree.DecisionTreeClassifier()
-            elif mtype=='R':
-                m = tree.DecisionTreeRegressor()
-            else:
-                self.logger.error('Unknown type of model')
-        elif model == 'random_forest':
-            if params is None:
-                params = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10], 'n_estimators': [50, 100, 200]}
-                
-            if mtype=='C':
-                m = RandomForestClassifier()
-            elif mtype=='R':
-                m = RandomForestRegressor()
-            else:
-                self.logger.error('Unknown type of model')
-        elif model == 'adaboost':
-            if params is None:
-                params = {'n_estimators': [50, 100, 200], 'learning_rate':[0.001,0.01,.1]}
-                
-            if mtype=='C':
-                m = AdaBoostClassifier()
-            elif mtype=='R':
-                m = AdaBoostRegressor()
-            else:
-                self.logger.error('Unknown type of model')
-        elif model == 'knn':
-            if params is None:
-                params = {'n_neighbors': range(1, 30), 'weights':["uniform", "distance"]}
-                
-            if mtype=='C':
-                m = KNeighborsClassifier()
-            elif mtype=='R':
-                m = KNeighborsRegressor()
-            else:
-                self.logger.error('Unknown type of model')     
-        elif model == 'gbdt':
-            if params is None:
-                params = {'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'learning_rate':[0.001,0.01,.1], 'max_depth': [1, 2, 3, 5, 10, 20, 50, None], 'min_samples_leaf': [1, 2, 4]}
-                
-            if mtype=='C':
-                m = HistGradientBoostingClassifier()
-            elif mtype=='R':
-                m = HistGradientBoostingRegressor()
-            else:
-                self.logger.error('Unknown type of model')                  
-        elif model == 'gaussian_nb':
-            if params is None:
-                params = {'var_smoothing': np.logspace(0,-9, num=100)}
-                
-            if mtype=='C':
-                m = GaussianNB()
-            else:
-                self.logger.error('Unknown type of model')
-        elif model == 'svm':
-            if params is None:
-                params = {'C': [0.1,1, 10, 100], 'gamma': [1,0.1,0.01,0.001],'kernel': ['linear', 'rbf']}
-                
-            if mtype=='C':
-                m = SVC(gamma='scale')
-            elif mtype =='R':
-                m = SVR()
-            else:
-                self.logger.error('Unknown type of model')  
-        elif model == 'bayesian':
-            if params is None:
-                params = {'alpha_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'alpha_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]}
-                
-            if mtype=='R':
-                m = BayesianRidge()
-            else:
-                self.logger.error('Unknown type of model')                 
-        elif m_type == 'C':
-            if params is None:
-                params = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
-                
-            m = tree.DecisionTreeClassifier()
-        elif m_type == 'R':
-            self.logger.info('Unrecognized regressor. Use decision tree instead')
-            if params is None:
-                params = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
-                
-            m = tree.DecisionTreeRegressor()
-        else:
-            self.logger.error('Unknown type of model')
+        if params is None:
+            params = std.get_std_search_space(model)
+            
+        m = self._get_model(mtype, params['model'])
           
         if strategy == 'grid':
             grid = GridSearchCV(m, param_grid=params, refit=True, cv=cv, verbose=verbose, n_jobs=-1)
@@ -677,27 +595,126 @@ class DataFactory:
         grid.fit(X_train, y_train)
         best_model = grid.best_estimator_
         y_pred = best_model.predict(X_test)
-        if mtype=='C':
-            score = f1_score(y_test, y_pred, average='weighted')
-        else:
-            score = 1 - self._relative_absolute_error(y_pred, y_test)
+        score = _get_score(y_pred, y_test, mtype)
         
         self.logger.info(f'...End search')
         self.logger.info(f'Best parameters are: {grid.best_params_}')
         return best_model, score
     
-    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'auto_sklearn', mtype='C'):
-        X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(dfx, dfy)
-        if strategy == 'auto_sklearn':
-            if mtype == 'C':
-                automl = autosklearn.classification.AutoSklearnClassifier()
-            elif mtype == 'R':
-                automl = autosklearn.classification.AutoSklearnRegressor()
-            else:
-                self.logger.error('Unknown type of model')
-            automl.fit(X_train, y_train)
-            y_pred = automl.predict(X_test)
+    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, strategy: str='hyperopt', models:list=['decision_tree'], mtype='C', params: list=list()):
+        """Finetunes one or multiple models according to the given strategy.
         
+        Keyword arguments:
+        dfx -- data
+        dfy -- labels
+        cv -- number of model instances
+        strategy -- finetuning strategy should be in ['auto_sklearn', 'hyperopt', 'sklearn']
+        models -- models consist of ['decision_tree', 'random_forest', 'adaboost', 'knn', 'gbdt', 'gaussian_nb' 'svm', 'bayesian']
+        mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
+        params -- list of dictionaries with parameter to try out
+
+        Output:
+        best_model -- the model with the highest score
+        best_score -- score of the best model
+        """
+        self.logger.info(f'Start finetuning...')
+        if strategy == 'auto_sklearn':
+            best_model, best_score = self._finetune_auto_sklearn(dfx, dfy, mtype=mtype, params=params)
+        elif strategy == 'hyperopt':
+            best_model, best_score = self._finetune_hyperopt(dfx, dfy, mtype=mtype, params=params)
+        elif strategy == 'sklearn':
+            ms = dict()
+            for i in range(len(models)):
+                ms[models[i]] = self._finetune_sklearn(dfx, dfy, cv=5, model=models[i], mtype=mtype, params=params[i].copy()) 
+            m_str = max(ms.items(), key=operator.itemgetter(0))[0]
+            best_model, best_score = ms[m_str]
+            self.logger.info(f'...End finetuning')
+            self.logger.info(f'Best model is: {m_str} with parameters: {model.get_params()}')
+        return best_model, best_score
+    
+    def _finetune_auto_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, mtype: str='C', params: Dict=dict()):
+        # TODO maybe delet params
+        X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
+        if mtype == 'C':
+            best_model = autosklearn.classification.AutoSklearnClassifier()
+        elif mtype == 'R':
+            best_model = autosklearn.classification.AutoSklearnRegressor()
+        else:
+            self.logger.error('Unknown type of model')
+        best_model.fit(X_train, y_train)
+        
+        y_pred = best_model.predict(X_test)        
+        best_score = self._get_score(y_pred, y_test, mtype)
+        return best_model, best_score
+       
+    
+    def _finetune_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype='C', params: Dict=dict()):
+        """Finetunes a given model with sklearn.
+        
+        Keyword arguments:
+        dfx -- data
+        dfy -- labels
+        cv -- number of model instances
+        model -- model should be in ['decision_tree', 'random_forest', 'adaboost', 'knn', 'gbdt', 'gaussian_nb' 'svm', 'bayesian']
+        mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
+        params -- parameter to try out
+
+        Output:
+        best_model -- the model with the highest score
+        best_score -- score of the best model
+        """
+        self.logger.info(f'Start search for best parameters of: {model}...')
+        X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
+        strategy = params.get('strategy', 'random')
+        if 'strategy' in params:
+            del params['strategy']
+        if not params:
+            params = std.get_std_search_space(model)
+        model = self._get_model(mtype, model)
+        if strategy == 'grid':
+            search = GridSearchCV(model, param_grid=params, refit=True, cv=cv, n_jobs=-1)
+        elif strategy == 'random':
+            search = RandomizedSearchCV(model, param_distributions=params, refit=True, cv=cv, n_jobs=-1)
+    
+        search.fit(X_train, y_train)
+        best_model = search.best_estimator_
+        
+        y_pred = best_model.predict(X_test)        
+        best_score = self._get_score(y_pred, y_test, mtype)
+        
+        self.logger.info(f'...End search')
+        self.logger.info(f'Best parameters are: {search.best_params_} with score {best_score:.2f}')
+        return best_model, best_score
+    
+    #def _finetune_hyperopt(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype: str='C', params: Dict=dict()):
+        #best_score = 0.0
+        #best_model = None
+        #for i in range(cv):
+        #    X_train, X_test, y_train, y_test = train_test_split(dfx, dfy, random_state=i)
+        #    strategy = params.get('strategy', 'random')
+        #    del params['strategy']
+        #    if not params:
+        #        params = std.get_std_search_space(model)
+
+        #    model = self._get_model(mtype, model)
+            # TODO
+            # model.fit(X_train, y_train)
+        
+        #    y_pred = model.predict(X_test)        
+        #    score = _get_score(y_pred, y_test, mtype)
+        #    if score > best_score: 
+        #        best_score = score
+        #        best_model = model
+        #return best_score, best_model
+
+    def _relative_absolute_error(self, pred, y):
+        dis = abs((pred-y)).sum()
+        dis2 = abs((y.mean() - y)).sum()
+        if dis2 == 0 :
+            return 1
+        return dis/dis2
+    
+    def _get_score(self, y_pred, y_test, mtype):
         if mtype == 'C':
             score = f1_score(y_test, y_pred, average='weighted')
         elif mtype == 'R':
@@ -706,10 +723,66 @@ class DataFactory:
             self.logger.error('Unknown type of model')
         return score
             
-
-    def _relative_absolute_error(self, pred, y):
-        dis = abs((pred-y)).sum()
-        dis2 = abs((y.mean() - y)).sum()
-        if dis2 == 0 :
-            return 1
-        return dis/dis2
+    def _get_model(self, mtype, model):
+        if model == 'decision_tree':
+            if mtype=='C':
+                m = tree.DecisionTreeClassifier()
+            elif mtype=='R':
+                m = tree.DecisionTreeRegressor()
+            else:
+                self.logger.error('Unknown type of model')
+        elif model == 'random_forest':              
+            if mtype=='C':
+                m = RandomForestClassifier()
+            elif mtype=='R':
+                m = RandomForestRegressor()
+            else:
+                self.logger.error('Unknown type of model')
+        elif model == 'adaboost':               
+            if mtype=='C':
+                m = AdaBoostClassifier()
+            elif mtype=='R':
+                m = AdaBoostRegressor()
+            else:
+                self.logger.error('Unknown type of model')
+        elif model == 'knn':              
+            if mtype=='C':
+                m = KNeighborsClassifier()
+            elif mtype=='R':
+                m = KNeighborsRegressor()
+            else:
+                self.logger.error('Unknown type of model')     
+        elif model == 'gbdt':                
+            if mtype=='C':
+                m = HistGradientBoostingClassifier()
+            elif mtype=='R':
+                m = HistGradientBoostingRegressor()
+            else:
+                self.logger.error('Unknown type of model')                  
+        elif model == 'gaussian_nb':
+            if mtype=='C':
+                m = GaussianNB()
+            else:
+                self.logger.error('Unknown type of model')
+        elif model == 'svm':                
+            if mtype=='C':
+                m = SVC()
+            elif mtype =='R':
+                m = SVR()
+            else:
+                self.logger.error('Unknown type of model')  
+        elif model == 'bayesian':      
+            if mtype=='R':
+                m = BayesianRidge()
+            else:
+                self.logger.error('Unknown type of model')                 
+        elif m_type == 'C':    
+            self.logger.info('Unrecognized classifier. Use decision tree instead')   
+            m = tree.DecisionTreeClassifier()
+        elif m_type == 'R':
+            self.logger.info('Unrecognized regressor. Use decision tree instead')   
+            m = tree.DecisionTreeRegressor()
+        else:
+            self.logger.error('Unknown type of model')
+        return m
+        

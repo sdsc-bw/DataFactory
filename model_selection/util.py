@@ -16,7 +16,7 @@ def compare_models(models:list):
     dfx_titanic, dfy_titanic = datafactory.preprocess(df_titanic, y_col='survived')
     scores_titanic = dict() 
     for m in models:
-        _, scores_titanic[m] = datafactory.train_and_evaluate(dfx_titanic, dfy_titanic, strategy='random', model=m,  mtype="C")
+        _, scores_titanic[m] = datafactory._finetune_sklearn(dfx_titanic, dfy_titanic, model=m,  mtype="C")
     
     # load iris dataset
     data = load_iris()
@@ -25,7 +25,7 @@ def compare_models(models:list):
     dfx_iris, dfy_iris = datafactory.preprocess(df_iris, y_col='species')
     scores_iris = dict() 
     for m in models:
-        _, scores_iris[m] = datafactory.train_and_evaluate(dfx_iris, dfy_iris, strategy='random', model=m, mtype="C")
+        _, scores_iris[m] = datafactory._finetune_sklearn(dfx_iris, dfy_iris, model=m, mtype="C")
     
     # load wine dataset
     data = load_wine()
@@ -34,7 +34,7 @@ def compare_models(models:list):
     dfx_wine, dfy_wine = datafactory.preprocess(df_wine, y_col='class')
     scores_wine = dict() 
     for m in models:
-        _, scores_wine[m] = datafactory.train_and_evaluate(dfx_wine, dfy_wine, strategy='random', model=m, mtype="C")
+        _, scores_wine[m] = datafactory._finetune_sklearn(dfx_wine, dfy_wine, model=m, mtype="C")
     
     # load covertype dataset
     data = fetch_covtype()
@@ -43,7 +43,7 @@ def compare_models(models:list):
     dfx_covertype, dfy_covertype = datafactory.preprocess(df_covtype, y_col='type')
     scores_covtype = dict() 
     for m in models:
-        _, scores_covtype[m] = datafactory.train_and_evaluate(dfx_covertype, dfy_covertype, strategy='random', model=m, mtype="C")
+        _, scores_covtype[m] = datafactory._finetune_sklearn(dfx_covertype, dfy_covertype, model=m, mtype="C")
     
     df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset', 'Covertype Dataset'])
     #df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset'])
@@ -56,6 +56,10 @@ def compare_models(models:list):
             m_str = 'AdaBoost'
         elif m == 'gbdt':
             m_str = 'GBDT'
+        elif m == 'svm':
+            m_str = 'SVM'
+        elif m == 'knn':
+            m_str = 'KNN'
             
         df = df.append({'Models': m_str, 'Titanic Dataset': scores_titanic[m], 'Iris Dataset': scores_iris[m], 'Wine Dataset': scores_wine[m], 'Covertype Dataset': scores_covtype[m]}, ignore_index=True)
         #df = df.append({'Models': m_str, 'Titanic Dataset': scores_titanic[m], 'Iris Dataset': scores_iris[m], 'Wine Dataset': scores_wine[m]}, ignore_index=True)
