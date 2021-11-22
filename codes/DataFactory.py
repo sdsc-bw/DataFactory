@@ -9,22 +9,29 @@ from imblearn.under_sampling import *
 from imblearn.combine import * 
 from scipy.stats import iqr
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest, AdaBoostClassifier, HistGradientBoostingClassifier, HistGradientBoostingRegressor
+from sklearn.naive_bayes import GaussianNB
 from sklearn import tree, linear_model
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.metrics import roc_auc_score, mean_absolute_error, accuracy_score, f1_score
-from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSearchCV, cross_val_score
 from sklearn.neighbors import LocalOutlierFactor, KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.svm import SVC, SVR
 #import autosklearn.classification # requires linux
-from hyperopt import hp
+import hyperopt
+from hyperopt import fmin, tpe, rand, hp, SparkTrials, STATUS_OK, Trials
+import mlflow
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
 import operator
+import logging
+
+import util
 import transforms as tfd
 import std_search_space as std
-import logging
+
+CV = 5
 
 class DataFactory:
     def __init__(self, threshold: float = .01) -> None:
@@ -40,6 +47,9 @@ class DataFactory:
         self.opts_multi = self.load_opts(typ = 'multi')
         self.opts_cla_supervised = self.load_opts(typ= 'cla')
         self.opts_reg_supervised = self.load_opts(typ= 'reg')
+        
+        self.X = None
+        self.y = None
         
         
     def pipeline(self, fn: str) -> Tuple[list, list]:
@@ -601,7 +611,7 @@ class DataFactory:
         self.logger.info(f'Best parameters are: {grid.best_params_}')
         return best_model, score
     
-    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, strategy: str='hyperopt', models:list=['decision_tree'], mtype='C', params: list=list()):
+    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, strategy: str='hyperopt', models:list=['decision_tree'], mtype='C', params: Dict=dict()):
         """Finetunes one or multiple models according to the given strategy.
         
         Keyword arguments:
@@ -621,15 +631,25 @@ class DataFactory:
         if strategy == 'auto_sklearn':
             best_model, best_score = self._finetune_auto_sklearn(dfx, dfy, mtype=mtype, params=params)
         elif strategy == 'hyperopt':
-            best_model, best_score = self._finetune_hyperopt(dfx, dfy, mtype=mtype, params=params)
+            best_model, best_score, best_params = self._finetune_hyperopt(dfx, dfy, params, models, cv, mtype)
+            m_str = util.model_to_string(best_model)
+            self.logger.info(f'...End finetuning')
+            del best_params['cv']
+            del best_params['model']
+            del best_params['type']
+            self.logger.info(f'Best model is: {m_str} with parameters: {best_params}')
         elif strategy == 'sklearn':
             ms = dict()
-            for i in range(len(models)):
-                ms[models[i]] = self._finetune_sklearn(dfx, dfy, cv=5, model=models[i], mtype=mtype, params=params[i].copy()) 
+            strat = params.get('strategy', 'random')
+            if 'strategy' in params:
+                del params['strategy']
+            for m in models:
+                m_params = std.get_sklearn_search_space(m, params)
+                ms[m] = self._finetune_sklearn(dfx, dfy, cv=cv, model=m, mtype=mtype, params=m_params.copy(), strategy=strat) 
             m_str = max(ms.items(), key=operator.itemgetter(0))[0]
             best_model, best_score = ms[m_str]
             self.logger.info(f'...End finetuning')
-            self.logger.info(f'Best model is: {m_str} with parameters: {model.get_params()}')
+            self.logger.info(f'Best model is: {m_str} with parameters: {best_model.get_params()}')
         return best_model, best_score
     
     def _finetune_auto_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, mtype: str='C', params: Dict=dict()):
@@ -648,7 +668,7 @@ class DataFactory:
         return best_model, best_score
        
     
-    def _finetune_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype='C', params: Dict=dict()):
+    def _finetune_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype='C', params: Dict=dict(), strategy='random'):
         """Finetunes a given model with sklearn.
         
         Keyword arguments:
@@ -665,11 +685,6 @@ class DataFactory:
         """
         self.logger.info(f'Start search for best parameters of: {model}...')
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
-        strategy = params.get('strategy', 'random')
-        if 'strategy' in params:
-            del params['strategy']
-        if not params:
-            params = std.get_std_search_space(model)
         model = self._get_model(mtype, model)
         if strategy == 'grid':
             search = GridSearchCV(model, param_grid=params, refit=True, cv=cv, n_jobs=-1)
@@ -685,6 +700,37 @@ class DataFactory:
         self.logger.info(f'...End search')
         self.logger.info(f'Best parameters are: {search.best_params_} with score {best_score:.2f}')
         return best_model, best_score
+    
+    def _finetune_hyperopt(self, dfx: pd.DataFrame, dfy: pd.Series, params, models, cv, mtype):
+        self.X = dfx
+        self.y = dfy
+        trials = Trials()
+        strategy = params.get('strategy', 'random')
+        if 'strategy' in params:
+            del params['strategy']
+            
+        search_space = std.get_hyperopt_search_space(models, mtype, cv, params)
+        
+        if strategy == 'parzen':
+            algo = tpe.suggest
+        elif strategy == 'random':
+            algo = rand.suggest
+        
+        with mlflow.start_run():
+            best_result = fmin(
+            fn=self._objective, 
+            space=search_space,
+            algo=algo,
+            max_evals=32,
+            trials=trials)
+            
+        best_params = hyperopt.space_eval(search_space, best_result)
+        
+        best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
+        best_score = -trials.results[np.argmin([r['loss'] for r in trials.results])]['loss']
+        
+        return best_model, best_score, best_params   
+        
     
     #def _finetune_hyperopt(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype: str='C', params: Dict=dict()):
         #best_score = 0.0
@@ -723,65 +769,80 @@ class DataFactory:
             self.logger.error('Unknown type of model')
         return score
             
-    def _get_model(self, mtype, model):
+    def _objective(self, params):
+        model = params['model']
+        mtype = params['type']
+        cv = params['cv']
+        del params['model']
+        del params['type']
+        del params['cv']
+        m = self._get_model(mtype, model, params)
+        
+        # TODO why doesn't f1 work?
+        score = cross_val_score(m, self.X, self.y, cv=cv).mean()
+        
+        return {'loss': -score, 'status': STATUS_OK, 'model': m}
+        
+        
+    def _get_model(self, mtype, model, params=dict()):
         if model == 'decision_tree':
             if mtype=='C':
-                m = tree.DecisionTreeClassifier()
+                m = tree.DecisionTreeClassifier(**params)
             elif mtype=='R':
-                m = tree.DecisionTreeRegressor()
+                m = tree.DecisionTreeRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'random_forest':              
             if mtype=='C':
-                m = RandomForestClassifier()
+                m = RandomForestClassifier(**params)
             elif mtype=='R':
-                m = RandomForestRegressor()
+                m = RandomForestRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'adaboost':               
             if mtype=='C':
-                m = AdaBoostClassifier()
+                m = AdaBoostClassifier(**params)
             elif mtype=='R':
-                m = AdaBoostRegressor()
+                m = AdaBoostRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'knn':              
             if mtype=='C':
-                m = KNeighborsClassifier()
+                m = KNeighborsClassifier(**params)
             elif mtype=='R':
-                m = KNeighborsRegressor()
+                m = KNeighborsRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')     
         elif model == 'gbdt':                
             if mtype=='C':
-                m = HistGradientBoostingClassifier()
+                m = HistGradientBoostingClassifier(**params)
             elif mtype=='R':
-                m = HistGradientBoostingRegressor()
+                m = HistGradientBoostingRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')                  
         elif model == 'gaussian_nb':
             if mtype=='C':
-                m = GaussianNB()
+                m = GaussianNB(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'svm':                
             if mtype=='C':
-                m = SVC()
+                m = SVC(**params)
             elif mtype =='R':
-                m = SVR()
+                m = SVR(**params)
             else:
                 self.logger.error('Unknown type of model')  
         elif model == 'bayesian':      
             if mtype=='R':
-                m = BayesianRidge()
+                m = linear_model.BayesianRidge(**params)
             else:
                 self.logger.error('Unknown type of model')                 
-        elif m_type == 'C':    
+        elif mtype == 'C':    
             self.logger.info('Unrecognized classifier. Use decision tree instead')   
-            m = tree.DecisionTreeClassifier()
-        elif m_type == 'R':
+            m = tree.DecisionTreeClassifier(**params)
+        elif mtype == 'R':
             self.logger.info('Unrecognized regressor. Use decision tree instead')   
-            m = tree.DecisionTreeRegressor()
+            m = tree.DecisionTreeRegressor(**params)
         else:
             self.logger.error('Unknown type of model')
         return m
