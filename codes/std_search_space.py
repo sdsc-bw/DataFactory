@@ -22,14 +22,14 @@ sk_std_svm ={'C': [0.0, 10], 'gamma': [1, 0.1, 0.001],'kernel': ['linear', 'rbf'
 sk_std_bayesian = {'alpha_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'alpha_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]}
 
 # hyperopt standard search space
-hp_std_dt = {'model': dt, 'max_depth': hp.quniform('max_depth', 1, 10, 1), 'criterion': hp.choice('criterion', ['gini', 'entropy']), 'min_samples_split': hp.choice('min_samples_split',[2, 3, 5]), 'min_samples_leaf': hp.choice('min_samples_leaf', [1, 2, 4])}
-hp_std_rf = {'model': rf, 'max_depth': hp.choice('max_depth', [1, 2, 3, 5, 10, 20, 50]), 'min_samples_leaf': hp.choice('min_samples_leaf', [1, 2, 4]), 'min_samples_split': hp.choice('min_samples_split', [2, 5, 10]), 'n_estimators': hp.choice('n_estimators', [50, 100, 200])}
-hp_std_adaboost = {'model': ab, 'n_estimators': hp.choice('n_estimators', [50, 100, 200]), 'learning_rate': hp.choice('learning_rate', [0.001,0.01,.1])}
-hp_std_knn = {'model': knn, 'n_neighbors': hp.quniform('n_neighbors', 1, 30, 1), 'weights': hp.choice('weights', ["uniform", "distance"])}
-hp_std_gbdt = {'model': gbdt, 'max_depth': hp.choice('max_depth', [1, 2, 3, 5, 10, 20, 50]), 'learning_rate': hp.choice('learning_rate', [0.001,0.01,.1]), 'min_samples_leaf': hp.quniform('min_samples_leaf', 1, 5, 1)}
-hp_std_gaussian_nb =  {'model': nb, 'var_smoothing': np.logspace(0,-9, num=100)}
-hp_std_svm = {'model': svm, 'C': hp.lognormal('SVM_C', 0, 1.0), 'kernel': hp.choice('kernel', ['linear', 'rbf'])}
-hp_std_bayesian =  {'model': bay, 'alpha_1': hp.choice('alpha_1', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'alpha_2': hp.choice('alpha_2', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'lambda_1': hp.choice('lambda_1', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'lambda_2': hp.choice('lambda_2', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9])}
+hp_std_dt = {'model': dt, 'max_depth': hp.quniform('max_depth_dt', 1, 10, 1), 'criterion': hp.choice('criterion_dt', ['gini', 'entropy']), 'min_samples_split': hp.choice('min_samples_split_dt',[2, 3, 5]), 'min_samples_leaf': hp.choice('min_samples_leaf_dt', [1, 2, 4])}
+hp_std_rf = {'model': rf, 'max_depth': hp.choice('max_depth_rf', [1, 2, 3, 5, 10, 20, 50]), 'min_samples_leaf': hp.choice('min_samples_leaf_rf', [1, 2, 4]), 'min_samples_split': hp.choice('min_samples_split_rf', [2, 5, 10]), 'n_estimators': hp.choice('n_estimators_rf', [50, 100, 200])}
+hp_std_adaboost = {'model': ab, 'n_estimators': hp.choice('n_estimators_ab', [50, 100, 200]), 'learning_rate': hp.choice('learning_rate_ab', [0.001,0.01,.1])}
+hp_std_knn = {'model': knn, 'n_neighbors': hp.quniform('n_neighbors_knn', 1, 30, 1), 'weights': hp.choice('weights_knn', ["uniform", "distance"])}
+hp_std_gbdt = {'model': gbdt, 'max_depth': hp.choice('max_depth_gbdt', [1, 2, 3, 5, 10, 20, 50]), 'learning_rate': hp.choice('learning_rate_gbdt', [0.001,0.01,.1]), 'min_samples_leaf': hp.quniform('min_samples_leaf_gbdt', 1, 5, 1)}
+hp_std_gaussian_nb =  {'model': nb, 'var_smoothing': hp.lognormal('var_smoothing_nb', 0, 1.0)}
+hp_std_svm = {'model': svm, 'C': hp.lognormal('c_svm', 0, 1.0), 'kernel': hp.choice('kernel_svm', ['linear', 'rbf'])}
+hp_std_bayesian =  {'model': bay, 'alpha_1': hp.choice('alpha_1_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'alpha_2': hp.choice('alpha_2_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'lambda_1': hp.choice('lambda_1_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'lambda_2': hp.choice('lambda_2_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9])}
 
 def get_sklearn_search_space(model: str, params):
     if model in params:
@@ -39,31 +39,22 @@ def get_sklearn_search_space(model: str, params):
     
     if model == dt:
         search_space = sk_std_dt.copy()
-        #search_space['type'] = mtype
     elif model == rf:
         search_space = sk_std_rf.copy()
-        #search_space['type'] = mtype
     elif model == ab:
         search_space = sk_std_adaboost.copy()
-        #search_space['type'] = mtype
     elif model == knn:
         search_space = hp_std_knn.copy()
-        #search_space['type'] = mtype
     elif model == gbdt:
-        search_space = sk_std_gbdt.copy()
-        #search_space['type'] = mtype        
+        search_space = sk_std_gbdt.copy()    
     elif model == nb:
         search_space = sk_std_gaussian_nb.copy()
-        #search_space['type'] = mtype
     elif model == svm:
         search_space = sk_std_svm.copy()
-        #search_space['type'] = mtype
     elif model == bay:
         search_space = sk_std_bayesian.copy()
-        #search_space['type'] = mtype
     else: 
         search_space = sk_std_dt.copy()
-        #search_space['type'] = mtype
         
     return search_space
 
@@ -147,5 +138,4 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         search_space_list.append(model_space)
      
     search_space = hp.choice('classifier_type', search_space_list)
-    print(search_space)
     return search_space

@@ -730,28 +730,6 @@ class DataFactory:
         best_score = -trials.results[np.argmin([r['loss'] for r in trials.results])]['loss']
         
         return best_model, best_score, best_params   
-        
-    
-    #def _finetune_hyperopt(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype: str='C', params: Dict=dict()):
-        #best_score = 0.0
-        #best_model = None
-        #for i in range(cv):
-        #    X_train, X_test, y_train, y_test = train_test_split(dfx, dfy, random_state=i)
-        #    strategy = params.get('strategy', 'random')
-        #    del params['strategy']
-        #    if not params:
-        #        params = std.get_std_search_space(model)
-
-        #    model = self._get_model(mtype, model)
-            # TODO
-            # model.fit(X_train, y_train)
-        
-        #    y_pred = model.predict(X_test)        
-        #    score = _get_score(y_pred, y_test, mtype)
-        #    if score > best_score: 
-        #        best_score = score
-        #        best_model = model
-        #return best_score, best_model
 
     def _relative_absolute_error(self, pred, y):
         dis = abs((pred-y)).sum()
@@ -779,7 +757,7 @@ class DataFactory:
         m = self._get_model(mtype, model, params)
         
         # TODO why doesn't f1 work?
-        score = cross_val_score(m, self.X, self.y, cv=cv).mean()
+        score = cross_val_score(m, self.X, self.y, cv=cv, scoring='f1_weighted').mean()
         
         return {'loss': -score, 'status': STATUS_OK, 'model': m}
         
