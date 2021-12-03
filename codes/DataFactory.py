@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import logging
+import sys
 
 from abc import ABCMeta, abstractmethod
 from imblearn.over_sampling import *
@@ -18,20 +20,21 @@ from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSe
 from sklearn.neighbors import LocalOutlierFactor, KNeighborsClassifier
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from sklearn.svm import SVC, SVR
-#import autosklearn.classification # requires linux
+if 'autosklearn' in sys.modules:
+    import autosklearn.classification # requires linux or colab
 import hyperopt
 from hyperopt import fmin, tpe, rand, hp, SparkTrials, STATUS_OK, Trials
 import mlflow
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
 import operator
-import logging
+if 'tsai' in sys.modules:
+    from tsai.all import *
+    computer_setup()
 
 import util
 import transforms as tfd
 import std_search_space as std
-
-CV = 5
 
 class DataFactory:
     def __init__(self, threshold: float = .01) -> None:
@@ -575,7 +578,6 @@ class DataFactory:
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
         return X_train, X_test, y_train, y_test
     
-    # TODO add model to params
     def train_and_evaluate(self, dfx: pd.DataFrame, dfy: pd.Series = None, strategy: str = 'grid', cv: int = 5, model='decision_tree', mtype='C', params: Dict = None):
         """Trains and evaluates a given model.
         
@@ -610,6 +612,31 @@ class DataFactory:
         self.logger.info(f'...End search')
         self.logger.info(f'Best parameters are: {grid.best_params_}')
         return best_model, score
+    
+    
+    def train_and_evaluate_network(self, dfx: pd.DataFrame, dfy: pd.Series, model='inception_time', mtype='C', epochs: int=25, lr_max=1e-3, loss=None, optimizer='adam', params: Dict=dict(), transforms=None, batch_size=[64, 128], splits=None, metrics=['accuracy']):
+        arch = self._get_network(model)
+        loss = self._get_loss(loss)
+        optimizer = self._get_optimizer(optimizer)
+        metrics = self._get_metrics(metrics)
+        
+        self.logger.info(f'Start network training of: {model}...')
+        
+        if mtype=='C':
+            learn = TSClassifier(dfx, dfy, splits=splits, bs=batch_size, batch_tfms=transforms, arch=arch, arch_config=params, loss_func=loss, opt_func=optimizer, metrics=metrics)
+        elif mtype=='R':
+            learn = TSRegressor(dfx, dfy, splits=splits, bs=batch_size, batch_tfms=transforms, arch=arch, arch_config=params, loss_func=loss, opt_func=optimizer, metrics=metrics)
+        elif mtype=='F':
+            learn = TSForecaster(dfx, dfy, splits=splits, bs=batch_size, batch_tfms=transforms, arch=arch, arch_config=params, loss_func=loss, opt_func=optimizer, metrics=metrics)
+        else:
+            self.logger.error('Unknown type of model')
+            
+        learn.fit_one_cycle(epochs, lr_max=lr_max)
+        learn.plot_metrics()
+        
+        self.logger.info(f'...End network training')
+        
+        return learn
     
     def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, strategy: str='hyperopt', models:list=['decision_tree'], mtype='C', params: Dict=dict()):
         """Finetunes one or multiple models according to the given strategy.
@@ -730,7 +757,7 @@ class DataFactory:
         best_score = -trials.results[np.argmin([r['loss'] for r in trials.results])]['loss']
         
         return best_model, best_score, best_params   
-
+    
     def _relative_absolute_error(self, pred, y):
         dis = abs((pred-y)).sum()
         dis2 = abs((y.mean() - y)).sum()
@@ -765,63 +792,156 @@ class DataFactory:
     def _get_model(self, mtype, model, params=dict()):
         if model == 'decision_tree':
             if mtype=='C':
-                m = tree.DecisionTreeClassifier(**params)
+                return tree.DecisionTreeClassifier(**params)
             elif mtype=='R':
-                m = tree.DecisionTreeRegressor(**params)
+                return tree.DecisionTreeRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'random_forest':              
             if mtype=='C':
-                m = RandomForestClassifier(**params)
+                return RandomForestClassifier(**params)
             elif mtype=='R':
-                m = RandomForestRegressor(**params)
+                return RandomForestRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'adaboost':               
             if mtype=='C':
-                m = AdaBoostClassifier(**params)
+                return AdaBoostClassifier(**params)
             elif mtype=='R':
-                m = AdaBoostRegressor(**params)
+                return AdaBoostRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'knn':              
             if mtype=='C':
-                m = KNeighborsClassifier(**params)
+                return KNeighborsClassifier(**params)
             elif mtype=='R':
-                m = KNeighborsRegressor(**params)
+                return KNeighborsRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')     
         elif model == 'gbdt':                
             if mtype=='C':
-                m = HistGradientBoostingClassifier(**params)
+                return HistGradientBoostingClassifier(**params)
             elif mtype=='R':
-                m = HistGradientBoostingRegressor(**params)
+                return HistGradientBoostingRegressor(**params)
             else:
                 self.logger.error('Unknown type of model')                  
         elif model == 'gaussian_nb':
             if mtype=='C':
-                m = GaussianNB(**params)
+                return GaussianNB(**params)
             else:
                 self.logger.error('Unknown type of model')
         elif model == 'svm':                
             if mtype=='C':
-                m = SVC(**params)
+                return SVC(**params)
             elif mtype =='R':
-                m = SVR(**params)
+                return SVR(**params)
             else:
                 self.logger.error('Unknown type of model')  
         elif model == 'bayesian':      
             if mtype=='R':
-                m = linear_model.BayesianRidge(**params)
+                return linear_model.BayesianRidge(**params)
             else:
-                self.logger.error('Unknown type of model')                 
+                self.logger.error('Unknown type of model')
         elif mtype == 'C':    
             self.logger.info('Unrecognized classifier. Use decision tree instead')   
-            m = tree.DecisionTreeClassifier(**params)
+            return tree.DecisionTreeClassifier(**params)
         elif mtype == 'R':
             self.logger.info('Unrecognized regressor. Use decision tree instead')   
-            m = tree.DecisionTreeRegressor(**params)
+            return tree.DecisionTreeRegressor(**params)
         else:
             self.logger.error('Unknown type of model')
-        return m
+    
+    def _get_network(self, model):
+        if model == 'inception_time':
+            return InceptionTime
+        elif model == 'inception_time_plus':
+            return InceptionTimePlus
+        elif model == 'lstm':
+            return LSTM
+        elif model == 'gru':
+            return GRU
+        elif model == 'mlp':
+            return MLP
+        elif model == 'fcn':
+            return FCN
+        elif model == 'res_net':
+            return ResNet
+        elif model == 'lstm_fcn':
+            return LSTM_FCN
+        elif model == 'gru_fcn':
+            return GRU_FCN
+        elif model == 'mwdn':
+            return mWDN
+        elif model == 'tcn':
+            return TCN
+        elif model == 'xception_time':
+            return XceptionTime
+        elif model == 'res_cnn':
+            return ResCNN
+        elif model == 'tab_model':
+            return TabModel
+        elif model == 'omni_scale':
+            return OmniScale
+        elif model == 'tst':
+            return TST
+        elif model == 'tab_transformer':
+            return TabTransformer
+        elif model == 'xcm':
+            return XCM
+        elif model == 'mini_rocket':
+            return MiniRocket
+        else:
+            self.logger.error('Unknown type of model') 
+     
+    def _get_loss(self, loss:str):
+        # TODO add more
+        if loss == 'cross_entropy':
+            return CrossEntropyLossFlat()
+        elif loss == 'mse':
+            return MSELossFlat()
+        elif loss == 'smooth_cross_entropy':
+            return LabelSmoothingCrossEntropyFlat()
+        else:
+            return None
         
+    def _get_optimizer(self, optimizer:str):
+        # TODO add more
+        if optimizer == 'adam':
+            return Adam
+        else:
+            return Adam
+        
+    def _get_metrics(self, metrics: list):
+        # TODO add more
+        metrics_list = []
+        if 'accuracy' in metrics:
+            metrics_list.append(accuracy)
+            
+        
+        return metrics_list
+    
+    def plot(self, xdat, ydat, ptype='plot', title=''):
+        n_figures = len(ydat)
+        fig, axs = plt.subplots(n_figures, constrained_layout=True, figsize=(10, 10))
+        fig.suptitle(title)
+        fig = plt.figure()
+
+        if ptype == 'plot':
+            for i in range(len(ydat)):
+                if len(xdat) == 1:
+                    axs[i].plot(xdat[0], ydat[i])
+                else:
+                    axs[i].plot(xdat[i], ydat[i])
+        elif ptype == 'bar':
+            for i in range(len(ydat)):
+                if len(xdat) == 1:
+                    axs[i].bar(xdat[0], ydat[i])
+                    axs[i].tick_params(axis='x', labelrotation=45)
+                    axs[i].set_ylim([0, 1.1])
+                    axs[i].set_yticks(np.arange(0, 1.5, 0.25))
+                else:
+                    axs[i].bar(xdat[i], ydat[i])
+                    axs[i].tick_params(axis='x', labelrotation=45)
+                    axs[i].set_ylim([0, 1.1])
+                    axs[i].set_yticks(np.arange(0, 1.5, 0.25))
+        plt.show()
