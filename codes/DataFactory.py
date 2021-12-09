@@ -120,7 +120,6 @@ class DataFactory:
         dfx -- data
         dfy -- labels
         k_term -- whether k-terms should be added as columns
-
         Output:
         dat_new -- encoded data
         out_y -- encoded labels (optional)
@@ -197,7 +196,6 @@ class DataFactory:
         Keyword arguments:
         dat -- dataframe
         strategy -- cleaning strategy, should be in ['model', 'mean', 'median', 'most_frequent', 'constant']
-
         Output:
         dat -- cleaned dataframe
         """
@@ -243,7 +241,6 @@ class DataFactory:
         target -- labels
         cv -- number of random forests
         mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
-
         Output:
         mean -- mean of scores
         var -- variance of scores
@@ -313,7 +310,6 @@ class DataFactory:
         
         Keyword arguments:
         value -- dataframe
-
         Output:
         out -- outlier of given dataframe
         """
@@ -333,7 +329,6 @@ class DataFactory:
         
         Keyword arguments:
         value -- dataframe with values of a given feature
-
         Output:
         out -- outlier of given feature
         """
@@ -351,7 +346,6 @@ class DataFactory:
         
         Keyword arguments:
         value -- dataframe
-
         Output:
         out -- outlier of given dataframe
         """
@@ -365,7 +359,6 @@ class DataFactory:
         
         Keyword arguments:
         value -- dataframe
-
         Output:
         out -- outlier of given dataframe
         """
@@ -426,7 +419,6 @@ class DataFactory:
     
     def sampling_up(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'SMOTE', random_state: int = None) -> Tuple[pd.DataFrame, pd.Series]:
         """Samples down dataset based on given sampling strategy.
-
         Keyword arguments:
         dfx -- data
         dfy -- labels
@@ -460,7 +452,6 @@ class DataFactory:
 
     def sampling_down(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'SMOTE', random_state: int = None) -> Tuple[pd.DataFrame, pd.Series]:
         """Samples down dataset based on given sampling strategy.
-
         Keyword arguments:
         dfx -- data
         dfy -- labels
@@ -504,7 +495,6 @@ class DataFactory:
 
     def sampling_combine(self, dfx: pd.DataFrame, dfy: pd.Series, strategy: str = 'SMOTE', random_state: int = None) -> Tuple[pd.DataFrame, pd.Series]:
         """Samples dataset based on given sampling strategy.
-
         Keyword arguments:
         dfx -- data
         dfy -- labels
@@ -542,7 +532,6 @@ class DataFactory:
 
     def preprocess(self, dat: pd.DataFrame, y_col: str) -> Tuple[np.array, np.array]:
         """Preprocesses data.
-
         Keyword arguments:
         dat -- dataframe with dataset
         y_col -- name of target column
@@ -563,7 +552,6 @@ class DataFactory:
 
     def preprocess_and_split(self, dat: pd.DataFrame, y_col: str) -> Tuple[np.array, np.array, np.array, np.array]:
         """Preprocesses data and splits data into trainingsset and testset.
-
         Keyword arguments:
         dat -- dataframe with dataset
         y_col -- name of target column
@@ -588,7 +576,6 @@ class DataFactory:
         cv -- number of model instances
         model -- model should be in ['decision_tree', 'random_forest', 'adaboost', 'knn', 'gbdt', 'gaussian_nb' 'svm', 'bayesian']
         mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
-
         Output:
         best_model -- the model with the highest score
         score -- score of the best model
@@ -649,7 +636,6 @@ class DataFactory:
         models -- models consist of ['decision_tree', 'random_forest', 'adaboost', 'knn', 'gbdt', 'gaussian_nb' 'svm', 'bayesian']
         mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
         params -- list of dictionaries with parameter to try out
-
         Output:
         best_model -- the model with the highest score
         best_score -- score of the best model
@@ -705,7 +691,6 @@ class DataFactory:
         model -- model should be in ['decision_tree', 'random_forest', 'adaboost', 'knn', 'gbdt', 'gaussian_nb' 'svm', 'bayesian']
         mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
         params -- parameter to try out
-
         Output:
         best_model -- the model with the highest score
         best_score -- score of the best model
@@ -884,8 +869,6 @@ class DataFactory:
             return OmniScale
         elif model == 'tst':
             return TST
-        elif model == 'tab_transformer':
-            return TabTransformer
         elif model == 'xcm':
             return XCM
         elif model == 'mini_rocket':
@@ -920,7 +903,7 @@ class DataFactory:
         
         return metrics_list
     
-    def plot(self, xdat, ydat, ptype='plot', title=''):
+    def plot_model_comparison(self, xdat, ydat, ptype='plot', title=''):
         n_figures = len(ydat)
         fig, axs = plt.subplots(n_figures, constrained_layout=True, figsize=(10, 10))
         fig.suptitle(title)
