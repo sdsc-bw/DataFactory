@@ -1,5 +1,8 @@
 import numpy as np
 from hyperopt import tpe, hp
+import sys
+from tsai.all import *
+computer_setup()
 
 dt = 'decision_tree'
 rf = 'random_forest'
@@ -9,7 +12,10 @@ gbdt = 'gbdt'
 nb = 'gaussian_nb'
 svm = 'svm'
 bay = 'bayesian'
+it = 'inception_time'
+itp = 'inception_time_plus'
 
+learner = 'learner'
 
 # sklearn standard search space
 sk_std_dt = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
@@ -30,6 +36,11 @@ hp_std_gbdt = {'model': gbdt, 'max_depth': hp.choice('max_depth_gbdt', [1, 2, 3,
 hp_std_gaussian_nb =  {'model': nb, 'var_smoothing': hp.lognormal('var_smoothing_nb', 0, 1.0)}
 hp_std_svm = {'model': svm, 'C': hp.lognormal('c_svm', 0, 1.0), 'kernel': hp.choice('kernel_svm', ['linear', 'rbf'])}
 hp_std_bayesian =  {'model': bay, 'alpha_1': hp.choice('alpha_1_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'alpha_2': hp.choice('alpha_2_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'lambda_1': hp.choice('lambda_1_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]), 'lambda_2': hp.choice('lambda_2_bay', [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9])}
+hp_std_learner = {'loss_func': 'cross_entropy', 'opt_func': 'adam', 'epochs': 25, 'lr_max': 1e-3, 'metrics': ['accuracy']}
+hp_std_inception_time = {'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 128]), 'nf': hp.choice('nf_it', [32, 64])}
+#hp_std_learner = {'epochs': 25, 'lr_max': 1e-3}
+#hp_std_inception_time = {}
+hp_std_inception_time_plus = {'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 128]), 'fc_dropout': hp.choice('fc_dropout_ipt', [0.3, 0.5])}
 
 def get_sklearn_search_space(model: str, params):
     if model in params:
@@ -61,7 +72,7 @@ def get_sklearn_search_space(model: str, params):
 def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
     search_space_list = []
     if dt in models:
-        if dt not in params :
+        if dt not in params:
             model_space = hp_std_dt.copy()
         else:
             model_space = params[dt]
@@ -70,7 +81,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['cv'] = cv
         search_space_list.append(model_space)
     if 'random_forest' in models:
-        if rf not in params :
+        if rf not in params:
             model_space = hp_std_rf.copy()
         else:
             model_space = params[rf]
@@ -79,7 +90,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['cv'] = cv
         search_space_list.append(model_space)
     if 'adaboost' in models:
-        if ab not in params :
+        if ab not in params:
             model_space = hp_std_adaboost.copy()
         else:
             model_space = params[ab]
@@ -89,7 +100,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['cv'] = cv
         search_space_list.append(model_space)
     if 'knn' in models:
-        if knn not in params :
+        if knn not in params:
             model_space = hp_std_knn.copy()
         else:
             model_space = params[knn]
@@ -99,7 +110,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['cv'] = cv
         search_space_list.append(model_space)
     if 'gbdt' in models:
-        if gbdt not in params :
+        if gbdt not in params:
             model_space = hp_std_gbdt.copy()
         else:
             model_space = params[gbdt]
@@ -109,7 +120,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['cv'] = cv
         search_space_list.append(model_space)
     if 'gaussian_nb' in models:
-        if nb not in params :
+        if nb not in params:
             model_space = hp_std_gaussian_nb.copy()
         else:
             model_space = params[nb]
@@ -118,7 +129,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['cv'] = cv
         search_space_list.append(model_space)
     if 'svm' in models:
-        if svm not in params :
+        if svm not in params:
             model_space = hp_std_svm.copy()
         else:
             model_space = params[svm]
@@ -128,7 +139,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['cv'] = cv
         search_space_list.append(model_space)
     if 'bayesian' in models:   
-        if bay not in params :
+        if bay not in params:
             model_space = hp_std_bayesian.copy()
         else:
             model_space = params[bay]
@@ -136,6 +147,29 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space['type'] = mtype
         model_space['cv'] = cv
         search_space_list.append(model_space)
-     
-    search_space = hp.choice('classifier_type', search_space_list)
-    return search_space
+    if 'learner' in models:
+        if learner in params:
+            model_space = hp_std_learner.copy()
+        else:
+            model_space = params[learner]
+            model_space['model'] = learner
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        search_space_list.append(model_space)
+    if 'inception_time' in models:
+        if it not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_inception_time.copy()
+            model_space['model'] = it
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[it]:
+                del params[it]['learner']
+            model_space['arch_config'] = params[it]
+            model_space['model'] = it
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        search_space_list.append(model_space)
+        
+    search_space_model = hp.choice('classifier_type', search_space_list)
+    return search_space_model

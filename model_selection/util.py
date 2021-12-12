@@ -15,15 +15,19 @@ def compare_models(models:list):
     datafactory = DataFactory()
     
     # load titanic dataset
-    df_titanic = pd.read_csv('../data/titanic.csv')
+    if 'google.colab' in sys.modules:
+        df_titanic = pd.read_csv('Datafactory/data/titanic.csv')
+    else:
+        df_titanic = pd.read_csv('../data/titanic.csv')
+    df_titanic = shuffle(df_titanic)
     dfx_titanic, dfy_titanic = datafactory.preprocess(df_titanic, y_col='survived')
-    dfx_titanic = shuffle(dfx_titanic)
     scores_titanic = dict() 
     for m in models:
         if m == 'inception_time' or m == 'res_net':
+            ## TODO how use f1 instead acc
             scores_titanic[m] = datafactory.train_and_evaluate_network(dfx_titanic, dfy_titanic, model=m, mtype="C", epochs=200).recorder.values[-1][2]
         else:       
-            _, scores_titanic[m] = datafactory._finetune_sklearn(dfx_titanic, dfy_titanic, model=m,  mtype="C")
+            _, scores_titanic[m] = datafactory._finetune_native(dfx_titanic, dfy_titanic, model=m,  mtype="C")
     
     # load iris dataset
     data = load_iris()
@@ -36,7 +40,7 @@ def compare_models(models:list):
         if m == 'inception_time' or m == 'res_net':
             scores_iris[m] = datafactory.train_and_evaluate_network(dfx_iris, dfy_iris, model=m, mtype="C", epochs=100).recorder.values[-1][2]
         else:        
-            _, scores_iris[m] = datafactory._finetune_sklearn(dfx_iris, dfy_iris, model=m, mtype="C")
+            _, scores_iris[m] = datafactory._finetune_native(dfx_iris, dfy_iris, model=m, mtype="C")
     
     # load wine dataset
     data = load_wine()
@@ -49,7 +53,7 @@ def compare_models(models:list):
         if m == 'inception_time' or m == 'res_net':
             scores_wine[m] = datafactory.train_and_evaluate_network(dfx_wine, dfy_wine, model=m, mtype="C", epochs=200).recorder.values[-1][2]
         else:
-            _, scores_wine[m] = datafactory._finetune_sklearn(dfx_wine, dfy_wine, model=m, mtype="C")
+            _, scores_wine[m] = datafactory._finetune_native(dfx_wine, dfy_wine, model=m, mtype="C")
     
     # load covertype dataset
     data = fetch_covtype()
@@ -67,7 +71,7 @@ def compare_models(models:list):
             continue
             #scores_covtype[m] = datafactory.train_and_evaluate_network(dfx_covertype, dfy_covertype, model=m, mtype="C", epochs=200).recorder.values[-1][2]
         else:  
-            _, scores_covtype[m] = datafactory._finetune_sklearn(dfx_covertype, dfy_covertype, model=m, mtype="C")
+            _, scores_covtype[m] = datafactory._finetune_native(dfx_covertype, dfy_covertype, model=m, mtype="C")
     
     df = pd.DataFrame(columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset', 'Covertype Dataset'])
     #df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset'])
@@ -104,11 +108,11 @@ def compare_networks(models:list):
         learn = datafactory.train_and_evaluate_network(X_natops, y_natops, model=m, splits=splits_natops, transforms=transforms)
         scorse_natops[m] = learn.recorder.values[-1][2]
     
-    X_oo, y_oo, splits_oo = get_UCR_data('OliveOil', return_split=False)
-    scorse_oo = dict()
+    X_car, y_car, splits_car = get_UCR_data('Car', return_split=False)
+    scorse_car = dict()
     for m in models:
-        learn = datafactory.train_and_evaluate_network(X_oo, y_oo, model=m, splits=splits_oo, transforms=transforms)
-        scorse_oo[m] = learn.recorder.values[-1][2]
+        learn = datafactory.train_and_evaluate_network(X_car, y_car, model=m, splits=splits_car, transforms=transforms, epochs=100)
+        scorse_car[m] = learn.recorder.values[-1][2]
     
     X_lsst, y_lsst, splits_lsst = get_UCR_data('LSST', return_split=False)
     scorse_lsst = dict()
@@ -117,7 +121,7 @@ def compare_networks(models:list):
         scorse_lsst[m] = learn.recorder.values[-1][2]
         
         
-    df = pd.DataFrame(columns=['Models',  'NATOPS Dataset',  'OliveOil Dataset', 'LSST Dataset'])
+    df = pd.DataFrame(columns=['Models',  'NATOPS Dataset',  'Car Dataset', 'LSST Dataset'])
     for m in models:
         if m == 'inception_time':
             m_str = 'InceptionTime'
@@ -151,12 +155,10 @@ def compare_networks(models:list):
             m_str = 'OmniScale'
         elif m == 'tst':
             m_str = 'TST'
-        elif m == 'tab_transformer':
-            m_str = 'TabTransformer'
         elif m == 'xcm':
             m_str = 'XCM'
         elif m == 'mini_rocket':
             m_str = 'MiniRocket'     
         
-        df = df.append({'Models': m_str, 'NATOPS Dataset': scorse_natops[m], 'OliveOil Dataset': scorse_oo[m], 'LSST Dataset': scorse_lsst[m]}, ignore_index=True)
+        df = df.append({'Models': m_str, 'NATOPS Dataset': scorse_natops[m], 'Car Dataset': scorse_car[m], 'LSST Dataset': scorse_lsst[m]}, ignore_index=True)
     return df

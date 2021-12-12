@@ -28,13 +28,12 @@ import mlflow
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from transforms import UnaryOpt, BinaryOpt, MultiOpt
 import operator
-if 'tsai' in sys.modules:
-    from tsai.all import *
-    computer_setup()
+from tsai.all import *
+computer_setup()
 
-import util
+import util_codes as util
 import transforms as tfd
-import std_search_space as std
+import search_space as ss
 
 class DataFactory:
     def __init__(self, threshold: float = .01) -> None:
@@ -520,15 +519,6 @@ class DataFactory:
             res_y = pd.Series(res_y, name = dfy.name)
         self.logger.info('...End with combine sampling')
         return res_x, res_y
-    
-#    def finetune(dat:pd.DataFrame, target: pd.Series, strategy: str='auto-sklearn'):
-#        """strategy should be one of ['auto-sklearn']"""
-#        self.logger.info(f'+ Start to finetune strategy: {strategy}')
-#        if strategy == 'auto-sklearn'
-#            X_train, X_test, y_train, y_test = train_test_split(dat, target)
-#            cls = autosklearn.classification.AutoSklearnClassifier()
-#            cls.fit(X_train, y_train)
-#            return cls
 
     def preprocess(self, dat: pd.DataFrame, y_col: str) -> Tuple[np.array, np.array]:
         """Preprocesses data.
@@ -583,7 +573,7 @@ class DataFactory:
         self.logger.info(f'Start search for best parameters of: {model}...')
         X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
         if params is None:
-            params = std.get_std_search_space(model)
+            params = ss.get_std_search_space(model)
             
         m = self._get_model(mtype, params['model'])
           
@@ -603,9 +593,9 @@ class DataFactory:
     
     def train_and_evaluate_network(self, dfx: pd.DataFrame, dfy: pd.Series, model='inception_time', mtype='C', epochs: int=25, lr_max=1e-3, loss=None, optimizer='adam', params: Dict=dict(), transforms=None, batch_size=[64, 128], splits=None, metrics=['accuracy']):
         arch = self._get_network(model)
-        loss = self._get_loss(loss)
-        optimizer = self._get_optimizer(optimizer)
-        metrics = self._get_metrics(metrics)
+        loss = util.get_loss(loss)
+        optimizer = util.get_optimizer(optimizer)
+        metrics = util.get_metrics(metrics)
         
         self.logger.info(f'Start network training of: {model}...')
         
@@ -625,14 +615,14 @@ class DataFactory:
         
         return learn
     
-    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, strategy: str='hyperopt', models:list=['decision_tree'], mtype='C', params: Dict=dict()):
-        """Finetunes one or multiple models according to the given strategy.
+    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, method: str='hyperopt', models:list=['decision_tree'], mtype='C', params: Dict=dict()):
+        """Finetunes one or multiple models according to the given method.
         
         Keyword arguments:
         dfx -- data
         dfy -- labels
         cv -- number of model instances
-        strategy -- finetuning strategy should be in ['auto_sklearn', 'hyperopt', 'sklearn']
+        method -- finetuning method should be in ['auto_sklearn', 'hyperopt', 'sklearn']
         models -- models consist of ['decision_tree', 'random_forest', 'adaboost', 'knn', 'gbdt', 'gaussian_nb' 'svm', 'bayesian']
         mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
         params -- list of dictionaries with parameter to try out
@@ -641,9 +631,9 @@ class DataFactory:
         best_score -- score of the best model
         """
         self.logger.info(f'Start finetuning...')
-        if strategy == 'auto_sklearn':
+        if method == 'auto_sklearn':
             best_model, best_score = self._finetune_auto_sklearn(dfx, dfy, mtype=mtype, params=params)
-        elif strategy == 'hyperopt':
+        elif method == 'hyperopt':
             best_model, best_score, best_params = self._finetune_hyperopt(dfx, dfy, params, models, cv, mtype)
             m_str = util.model_to_string(best_model)
             self.logger.info(f'...End finetuning')
@@ -651,18 +641,18 @@ class DataFactory:
             del best_params['model']
             del best_params['type']
             self.logger.info(f'Best model is: {m_str} with parameters: {best_params}')
-        elif strategy == 'sklearn':
+        elif method == 'native':
             ms = dict()
-            strat = params.get('strategy', 'random')
+            strategy = params.get('strategy', 'random')
             if 'strategy' in params:
                 del params['strategy']
             for m in models:
-                m_params = std.get_sklearn_search_space(m, params)
-                ms[m] = self._finetune_sklearn(dfx, dfy, cv=cv, model=m, mtype=mtype, params=m_params.copy(), strategy=strat) 
+                m_params = ss.get_sklearn_search_space(m, params)
+                ms[m] = self._finetune_native(dfx, dfy, cv=cv, model=m, mtype=mtype, params=m_params.copy(), strategy=strategy) 
             m_str = max(ms.items(), key=operator.itemgetter(0))[0]
-            best_model, best_score = ms[m_str]
+            best_model, best_score, best_params = ms[m_str]
             self.logger.info(f'...End finetuning')
-            self.logger.info(f'Best model is: {m_str} with parameters: {best_model.get_params()}')
+            self.logger.info(f'Best model is: {m_str} with parameters: {best_params}')
         return best_model, best_score
     
     def _finetune_auto_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, mtype: str='C', params: Dict=dict()):
@@ -681,7 +671,7 @@ class DataFactory:
         return best_model, best_score
        
     
-    def _finetune_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype='C', params: Dict=dict(), strategy='random'):
+    def _finetune_native(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype='C', params: Dict=dict(), strategy='random'):
         """Finetunes a given model with sklearn.
         
         Keyword arguments:
@@ -696,22 +686,44 @@ class DataFactory:
         best_score -- score of the best model
         """
         self.logger.info(f'Start search for best parameters of: {model}...')
-        X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
-        model = self._get_model(mtype, model)
-        if strategy == 'grid':
-            search = GridSearchCV(model, param_grid=params, refit=True, cv=cv, n_jobs=-1)
-        elif strategy == 'random':
-            search = RandomizedSearchCV(model, param_distributions=params, refit=True, cv=cv, n_jobs=-1)
-    
-        search.fit(X_train, y_train)
-        best_model = search.best_estimator_
-        
-        y_pred = best_model.predict(X_test)        
-        best_score = self._get_score(y_pred, y_test, mtype)
+        if util.get_library(model) == 'sklearn':
+            X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
+            model = self._get_model(mtype, model)
+            if strategy == 'grid':
+                search = GridSearchCV(model, param_grid=params, refit=True, cv=cv, n_jobs=-1)
+            elif strategy == 'random':
+                search = RandomizedSearchCV(model, param_distributions=params, refit=True, cv=cv, n_jobs=-1)
+            else:
+                self.logger.error('Unknown strategy')
+
+            search.fit(X_train, y_train)
+            best_model = search.best_estimator_
+
+            y_pred = best_model.predict(X_test)        
+            best_score = self._get_score(y_pred, y_test, mtype)
+            best_params = search.best_params_
+        elif util.get_library(model) == 'tsai':
+            tfms = params.get('transforms', None)
+            splits = params.get('splits', None)
+            bs = params.get('bs', None)
+            arch_config = params.get(model, dict())
+            epochs = params.get('epochs', 25)
+            lr_max = params.get('lr_max', 1e-3)
+            
+            dsets = TSDatasets(dfx, dfy, tfms=tfms, splits=splits)
+            dls   = TSDataLoaders.from_dsets(dsets.train, dsets.valid, bs=bs)
+            
+            model = self._get_network(model)
+            # todo use f1 instead of accuracy
+            learn = Learner(dls, model,  metrics=accuracy)
+            learn.fit_one_cycle(epochs, lr_max)
+            best_model = learn
+            best_score = learn.recorder.values[-1][2]
+            best_params = arch_config
         
         self.logger.info(f'...End search')
-        self.logger.info(f'Best parameters are: {search.best_params_} with score {best_score:.2f}')
-        return best_model, best_score
+        self.logger.info(f'Best parameters are: {best_params} with score {best_score:.2f}')
+        return best_model, best_score, best_params
     
     def _finetune_hyperopt(self, dfx: pd.DataFrame, dfy: pd.Series, params, models, cv, mtype):
         self.X = dfx
@@ -721,12 +733,14 @@ class DataFactory:
         if 'strategy' in params:
             del params['strategy']
             
-        search_space = std.get_hyperopt_search_space(models, mtype, cv, params)
+        search_space = ss.get_hyperopt_search_space(models, mtype, cv, params)
         
         if strategy == 'parzen':
             algo = tpe.suggest
         elif strategy == 'random':
             algo = rand.suggest
+        else:
+            self.logger.error('Unknown strategy')
         
         with mlflow.start_run():
             best_result = fmin(
@@ -766,13 +780,35 @@ class DataFactory:
         del params['model']
         del params['type']
         del params['cv']
+        
+        
+        if util.get_library(model) == 'tsai':
+            params = params.copy()
+            epochs = params.get('epochs', 25)
+            lr_max = params.get('lr_max', 1e-3)
+            
+            if 'epochs' in params:
+                del params['epochs']
+            if 'lr_max' in params:
+                del params['lr_max']
+        
         m = self._get_model(mtype, model, params)
         
-        # TODO why doesn't f1 work?
-        score = cross_val_score(m, self.X, self.y, cv=cv, scoring='f1_weighted').mean()
-        
+        # TODO use f1 instead of accuracy
+        if util.get_library(model) == 'sklearn': 
+            score = cross_val_score(m, self.X, self.y, cv=cv, scoring='accuracy').mean()
+            #score = cross_val_score(m, self.X, self.y, cv=cv, scoring='f1_weighted').mean()
+        elif util.get_library(model) == 'tsai':
+            score = self.cross_val_score_tsai(m, cv, epochs, lr_max).mean()
         return {'loss': -score, 'status': STATUS_OK, 'model': m}
         
+    def cross_val_score_tsai(self, model, cv, epochs, lr_max):
+        scores = np.zeros(cv)
+        for i in range(cv):
+            model.fit_one_cycle(epochs, lr_max=lr_max)
+            # TODO how to use f1 instead of accuracy?
+            scores[i] = model.recorder.values[-1][2]
+        return scores
         
     def _get_model(self, mtype, model, params=dict()):
         if model == 'decision_tree':
@@ -827,6 +863,23 @@ class DataFactory:
                 return linear_model.BayesianRidge(**params)
             else:
                 self.logger.error('Unknown type of model')
+        elif model == 'inception_time':
+            ## TODO clean up loss + optimizer
+            params['loss_func'] = util.get_loss(params.get('loss_func', 'cross_entropy'))
+            params['opt_func'] = util.get_optimizer(params.get('opt_func', 'adam'))
+            params['metrics'] = util.get_metrics(params.get('metrics', 'accuracy'))
+            params['batch_tfms'] = util.get_transforms(params.get('batch_tfms', []))
+            params['X'] = self.X
+            params['y'] = self.y
+            
+            if mtype == 'C':
+                return TSClassifier(**params)
+            elif mtype == 'R':
+                return TSRegressor(**params)
+            elif mtype == 'F':
+                return TSForecaster(**params)
+            else:
+                self.logger.error('Unknown type of model')
         elif mtype == 'C':    
             self.logger.info('Unrecognized classifier. Use decision tree instead')   
             return tree.DecisionTreeClassifier(**params)
@@ -875,33 +928,6 @@ class DataFactory:
             return MiniRocket
         else:
             self.logger.error('Unknown type of model') 
-     
-    def _get_loss(self, loss:str):
-        # TODO add more
-        if loss == 'cross_entropy':
-            return CrossEntropyLossFlat()
-        elif loss == 'mse':
-            return MSELossFlat()
-        elif loss == 'smooth_cross_entropy':
-            return LabelSmoothingCrossEntropyFlat()
-        else:
-            return None
-        
-    def _get_optimizer(self, optimizer:str):
-        # TODO add more
-        if optimizer == 'adam':
-            return Adam
-        else:
-            return Adam
-        
-    def _get_metrics(self, metrics: list):
-        # TODO add more
-        metrics_list = []
-        if 'accuracy' in metrics:
-            metrics_list.append(accuracy)
-            
-        
-        return metrics_list
     
     def plot_model_comparison(self, xdat, ydat, ptype='plot', title=''):
         n_figures = len(ydat)
