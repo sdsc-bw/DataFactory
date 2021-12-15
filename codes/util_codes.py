@@ -20,47 +20,69 @@ def model_to_string(model):
         return 'svm'
     elif type(model) == sklearn.linear_model._bayes.BayesianRidge:
         return 'bayesian'
+    # TODO add TSAI models
     
 def get_loss(loss:str):
-    # TODO add more
     if loss == 'cross_entropy':
-        return CrossEntropyLossFlat()
+        return CrossEntropyLossFlat() # Classification
     elif loss == 'mse':
-        return MSELossFlat()
+        return MSELossFlat() # Regression/Forecasting
     elif loss == 'smooth_cross_entropy':
-        return LabelSmoothingCrossEntropyFlat()
+        return LabelSmoothingCrossEntropyFlat() # Classification
+    elif loss == 'l1':
+        return L1LossFlat() # Regression/Forecasting
+    elif loss == 'focal':
+        return FocalLoss() # Classification
+    elif loss == 'dice':
+        return DiceLoss() # Classification
+    elif loss == 'bce':
+        return BCEWithLogitsLossFlat() # Regression/Forecasting
     else:
         return None
         
 def get_optimizer(optimizer:str):
-    # TODO add more
     if optimizer == 'adam':
         return Adam
+    if optimizer == 'r_adam':
+        return RAdam
+    if optimizer == 'qh_adam':
+        return QHAdam
+    if optimizer == 'sgd':
+        return SGD
+    if optimizer == 'rms_prop':
+        return RMSProp    
+    if optimizer == 'larc':
+        return Larc
+    if optimizer == 'lamb':
+        return Lamb
     else:
         return Adam
         
 def get_metrics(metrics: list):
     metrics_list = []
     metrics_list.append(accuracy)
-    # TODO add more
-    #if 'accuracy' in metrics:
-        #metrics_list.append(accuracy)
-            
+    if 'mae' in metrics:
+        metrics_list.append(mae)
+    if 'mse' in metrics:
+        metrics_list.append(mse)
+    if 'top_k_accuracy' in metrics:
+        metrics_list.append(top_k_accuracy)    
     return metrics_list
 
 def get_transforms(transforms: list):
     transforms_list = []
     if 'standardize' in transforms:
         transforms_list.append(TSStandardize())
-    # TODO add more
+    if 'clip' in transforms:
+        transforms_list.append(TSClip())    
+    if 'mag_scale' in transforms:
+        transforms_list.append(TSMagScale())
+    if 'window_wrap' in transforms:
+        transforms_list.append(TSWindowWarp())    
     return transforms_list
 
-def contains_tsai_model(models):
-    # TODO add more
-    if 'inception_time' in models:
-        return True
-
 def get_library(model):
+    # TODO add more
     if 'inception_time' == model:
         return 'tsai'
     else:
