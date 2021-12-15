@@ -10,6 +10,7 @@ from imblearn.over_sampling import *
 from imblearn.under_sampling import *
 from imblearn.combine import * 
 from scipy.stats import iqr
+from sklearn.experimental import enable_hist_gradient_boosting
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, IsolationForest, AdaBoostClassifier, HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.naive_bayes import GaussianNB
 from sklearn import tree, linear_model
@@ -597,7 +598,7 @@ class DataFactory:
         optimizer = util.get_optimizer(optimizer)
         metrics = util.get_metrics(metrics)
         
-        self.logger.info(f'Start network training of: {model}...')
+        self.logger.info(f'Start training of: {model}...')
         
         if mtype=='C':
             learn = TSClassifier(dfx, dfy, splits=splits, bs=batch_size, batch_tfms=transforms, arch=arch, arch_config=params, loss_func=loss, opt_func=optimizer, metrics=metrics)
@@ -611,7 +612,7 @@ class DataFactory:
         learn.fit_one_cycle(epochs, lr_max=lr_max)
         learn.plot_metrics()
         
-        self.logger.info(f'...End network training')
+        self.logger.info(f'...End training')
         
         return learn
     
@@ -647,7 +648,7 @@ class DataFactory:
             if 'strategy' in params:
                 del params['strategy']
             for m in models:
-                m_params = ss.get_sklearn_search_space(m, params)
+                m_params = ss.get_sklearn_search_space(m, mtype, params)
                 ms[m] = self._finetune_native(dfx, dfy, cv=cv, model=m, mtype=mtype, params=m_params.copy(), strategy=strategy) 
             m_str = max(ms.items(), key=operator.itemgetter(0))[0]
             best_model, best_score, best_params = ms[m_str]
@@ -701,7 +702,7 @@ class DataFactory:
 
             y_pred = best_model.predict(X_test)        
             best_score = self._get_score(y_pred, y_test, mtype)
-            best_params = search.best_params_
+            best_params = best_model.get_params()
         elif util.get_library(model) == 'tsai':
             tfms = params.get('transforms', None)
             splits = params.get('splits', None)

@@ -18,7 +18,8 @@ itp = 'inception_time_plus'
 learner = 'learner'
 
 # sklearn standard search space
-sk_std_dt = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+sk_std_dt_c = {"criterion": ['gini', 'entropy'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
+sk_std_dt_r = {"criterion": ['squared_error', 'absolute_error'], "max_depth": range(1, 10), "min_samples_split": range(1, 10), "min_samples_leaf": range(1, 5)}
 sk_std_rf = {'max_depth': [1, 2, 3, 5, 10, 20, 50], 'min_samples_leaf': [1, 2, 4], 'min_samples_split': [2, 5, 10], 'n_estimators': [50, 100, 200]}
 sk_std_adaboost = {'n_estimators': [50, 100, 200], 'learning_rate':[0.001,0.01,.1]}
 sk_std_knn = {'n_neighbors': range(1, 30), 'weights':["uniform", "distance"]}
@@ -28,7 +29,8 @@ sk_std_svm ={'C': [0.0, 10], 'gamma': [1, 0.1, 0.001],'kernel': ['linear', 'rbf'
 sk_std_bayesian = {'alpha_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'alpha_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_1': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9], 'lambda_2': [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9]}
 
 # hyperopt standard search space
-hp_std_dt = {'model': dt, 'max_depth': hp.quniform('max_depth_dt', 1, 10, 1), 'criterion': hp.choice('criterion_dt', ['gini', 'entropy']), 'min_samples_split': hp.choice('min_samples_split_dt',[2, 3, 5]), 'min_samples_leaf': hp.choice('min_samples_leaf_dt', [1, 2, 4])}
+hp_std_dt_c = {'model': dt, 'max_depth': hp.quniform('max_depth_dt', 1, 10, 1), 'criterion': hp.choice('criterion_dt', ['gini', 'entropy']), 'min_samples_split': hp.choice('min_samples_split_dt',[2, 3, 5]), 'min_samples_leaf': hp.choice('min_samples_leaf_dt', [1, 2, 4])}
+hp_std_dt_r = {'model': dt, 'max_depth': hp.quniform('max_depth_dt', 1, 10, 1), 'criterion': hp.choice('criterion_dt', ['squared_error', 'absolute_error']), 'min_samples_split': hp.choice('min_samples_split_dt',[2, 3, 5]), 'min_samples_leaf': hp.choice('min_samples_leaf_dt', [1, 2, 4])}
 hp_std_rf = {'model': rf, 'max_depth': hp.choice('max_depth_rf', [1, 2, 3, 5, 10, 20, 50]), 'min_samples_leaf': hp.choice('min_samples_leaf_rf', [1, 2, 4]), 'min_samples_split': hp.choice('min_samples_split_rf', [2, 5, 10]), 'n_estimators': hp.choice('n_estimators_rf', [50, 100, 200])}
 hp_std_adaboost = {'model': ab, 'n_estimators': hp.choice('n_estimators_ab', [50, 100, 200]), 'learning_rate': hp.choice('learning_rate_ab', [0.001,0.01,.1])}
 hp_std_knn = {'model': knn, 'n_neighbors': hp.quniform('n_neighbors_knn', 1, 30, 1), 'weights': hp.choice('weights_knn', ["uniform", "distance"])}
@@ -42,14 +44,17 @@ hp_std_inception_time = {'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 
 #hp_std_inception_time = {}
 hp_std_inception_time_plus = {'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 128]), 'fc_dropout': hp.choice('fc_dropout_ipt', [0.3, 0.5])}
 
-def get_sklearn_search_space(model: str, params):
+def get_sklearn_search_space(model: str, mtype:str, params):
     if model in params:
         search_space = params[model]
         del params[model]
         return search_space
     
     if model == dt:
-        search_space = sk_std_dt.copy()
+        if mtype == 'C':
+            search_space = sk_std_dt_c.copy()
+        else:
+            search_space = sk_std_dt_r.copy()
     elif model == rf:
         search_space = sk_std_rf.copy()
     elif model == ab:
@@ -65,7 +70,10 @@ def get_sklearn_search_space(model: str, params):
     elif model == bay:
         search_space = sk_std_bayesian.copy()
     else: 
-        search_space = sk_std_dt.copy()
+        if mtype == 'C':
+            search_space = sk_std_dt_c.copy()
+        else:
+            search_space = sk_std_dt_r.copy()
         
     return search_space
 
@@ -73,7 +81,10 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
     search_space_list = []
     if dt in models:
         if dt not in params:
-            model_space = hp_std_dt.copy()
+            if mtype == 'C':
+                model_space = hp_std_dt_c.copy()
+            else:
+                model_space = hp_std_dt_r.copy()
         else:
             model_space = params[dt]
             model_space['model'] = dt
