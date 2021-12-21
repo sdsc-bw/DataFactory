@@ -34,7 +34,7 @@ Here is a complete list of our supported models:
 | MLSTM-FCN         | *mlstm_fcn*           | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/RNN_FCN.py)
 | InceptionTime     | *inception_time*      | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/InceptionTime.py)
 | InceptionTimePlus | *inception_time_plus* | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/InceptionTimePlus.py)
-| XcetptinTime      | *xception_time*       | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/XceptionTime.py)
+| XcetptionTime      | *xception_time*       | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/XceptionTime.py)
 | ResCNN            | *res_cnn*             | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/ResCNN.py)
 | TabModel          | *tab_model*           | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/TabModel.py)
 | OmniScale         | *omni_scale*          | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/OmniScaleCNN.py)
