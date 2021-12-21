@@ -27,7 +27,7 @@ def compare_models(models:list):
             ## TODO how use f1 instead acc
             scores_titanic[m] = datafactory.train_and_evaluate_network(dfx_titanic, dfy_titanic, model=m, mtype="C", epochs=200).recorder.values[-1][2]
         else:       
-            _, scores_titanic[m] = datafactory._finetune_native(dfx_titanic, dfy_titanic, model=m,  mtype="C")
+            _, scores_titanic[m], _ = datafactory._finetune_native(dfx_titanic, dfy_titanic, model=m,  mtype="C")
     
     # load iris dataset
     data = load_iris()
@@ -40,7 +40,7 @@ def compare_models(models:list):
         if m == 'inception_time' or m == 'res_net':
             scores_iris[m] = datafactory.train_and_evaluate_network(dfx_iris, dfy_iris, model=m, mtype="C", epochs=100).recorder.values[-1][2]
         else:        
-            _, scores_iris[m] = datafactory._finetune_native(dfx_iris, dfy_iris, model=m, mtype="C")
+            _, scores_iris[m], _ = datafactory._finetune_native(dfx_iris, dfy_iris, model=m, mtype="C")
     
     # load wine dataset
     data = load_wine()
@@ -53,7 +53,7 @@ def compare_models(models:list):
         if m == 'inception_time' or m == 'res_net':
             scores_wine[m] = datafactory.train_and_evaluate_network(dfx_wine, dfy_wine, model=m, mtype="C", epochs=200).recorder.values[-1][2]
         else:
-            _, scores_wine[m] = datafactory._finetune_native(dfx_wine, dfy_wine, model=m, mtype="C")
+            _, scores_wine[m], _ = datafactory._finetune_native(dfx_wine, dfy_wine, model=m, mtype="C")
     
     # load covertype dataset
     data = fetch_covtype()
@@ -71,7 +71,7 @@ def compare_models(models:list):
             continue
             #scores_covtype[m] = datafactory.train_and_evaluate_network(dfx_covertype, dfy_covertype, model=m, mtype="C", epochs=200).recorder.values[-1][2]
         else:  
-            _, scores_covtype[m] = datafactory._finetune_native(dfx_covertype, dfy_covertype, model=m, mtype="C")
+            _, scores_covtype[m], _ = datafactory._finetune_native(dfx_covertype, dfy_covertype, model=m, mtype="C")
     
     df = pd.DataFrame(columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset', 'Covertype Dataset'])
     #df = pd.DataFrame(data,columns=['Models',  'Titanic Dataset',  'Iris Dataset', 'Wine Dataset'])
