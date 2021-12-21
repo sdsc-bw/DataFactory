@@ -7,7 +7,7 @@ According to the problem, some models fit better than others. If we have labeled
 
 Also the models can perform vary on different tasks. For example, for a simple problem it makes sense to use a more simple model like a decision tree, because more complex models like neural networks can lead to overfitting. Whereas these complexe models perform better at non-linear problems.
 
-In this Demo we want to present commonly used machine learning models and how they perform on different datasets.The models supported in this project are and how they can be adressed (C: Classifiction, R: Regression, F: Forecasting):
+In this Demo we want to present commonly used machine learning models and how they perform on different datasets.The models supported in this project are and how they can be adressed:
 
 | Model             | String                | Classification     | Regression         | Forecasting        | Domain  | Hyperparameters    |
 | ----------------- | --------------------- | ------------------ | ------------------ | -------------------| ------- | ------------------ |
@@ -38,3 +38,5 @@ In this Demo we want to present commonly used machine learning models and how th
 | TST               | *tst*                 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/TST.py)
 | MiniRocket        | *mini_rocket*         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/MINIROCKET.py)
 | XCM               | *xcm*                 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | TS      | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/XCM.py)
+
+(C: Classifiction, R: Regression, F: Forecasting, TS: Time Series, CV: Computer Vision)
