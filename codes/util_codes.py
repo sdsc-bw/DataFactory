@@ -20,7 +20,42 @@ def model_to_string(model):
         return 'svm'
     elif type(model) == sklearn.linear_model._bayes.BayesianRidge:
         return 'bayesian'
-    # TODO add TSAI models
+    elif model.model.__name__ == 'InceptionTime':
+        return 'inception_time'
+    elif model.model.__name__ == 'InceptionTimePlus':
+        return 'inception_time_plus'
+    elif model.model.__name__ == 'LSTM':
+        return 'lstm'
+    elif model.model.__name__ == 'GRU':
+        return 'gru'
+    elif model.model.__name__ == 'MLP':
+        return 'mlp'
+    elif model.model.__name__ == 'FCN':
+        return 'fcn'
+    elif model.model.__name__ == 'ResNet':
+        return 'res_net'
+    elif model.model.__name__ == 'LSTM-FCN':
+        return 'lstm_fcn'
+    elif model.model.__name__ == 'LSTM-GRU':
+        return 'lstm_gru'
+    elif model.model.__name__ == 'mWDN':
+        return 'mwdn'
+    elif model.model.__name__ == 'TCN':
+        return 'tcn'
+    elif model.model.__name__ == 'XceptionTime':
+        return 'xception_time'
+    elif model.model.__name__ == 'ResCNN':
+        return 'res_cnn'
+    elif model.model.__name__ == 'TabModel':
+        return 'tab_model'
+    elif model.model.__name__ == 'OmniScale':
+        return 'omni_scale'
+    elif model.model.__name__ == 'TST':
+        return 'tst'
+    elif model.model.__name__ == 'XCM':
+        return 'xcm'
+    elif model.model.__name__ == 'MiniRocket':
+        return 'mini_rocket'
     
 def get_loss(loss:str):
     if loss == 'cross_entropy':
@@ -82,8 +117,41 @@ def get_transforms(transforms: list):
     return transforms_list
 
 def get_library(model):
-    # TODO add more
     if 'inception_time' == model:
+        return 'tsai'
+    if 'inception_time_plus' == model:
+        return 'tsai'
+    elif model == 'lstm':
+        return 'tsai'
+    elif model == 'gru':
+        return 'tsai'
+    elif model == 'mlp':
+        return 'tsai'
+    elif model == 'fcn':
+        return 'tsai'
+    elif model == 'res_net':
+        return 'tsai'
+    elif model == 'lstm_fcn':
+        return 'tsai'
+    elif model == 'gru_fcn':
+        return 'tsai'
+    elif model == 'mwdn':
+        return 'tsai'
+    elif model == 'tcn':
+        return 'tsai'
+    elif model == 'xception_time':
+        return 'tsai'
+    elif model == 'res_cnn':
+        return 'tsai'
+    elif model == 'tab_model':
+        return 'tsai'
+    elif model == 'omni_scale':
+        return 'tsai'
+    elif model == 'tst':
+        return 'tsai'
+    elif model == 'xcm':
+        return 'tsai'
+    elif model == 'mini_rocket':
         return 'tsai'
     else:
         return 'sklearn'

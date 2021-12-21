@@ -4,6 +4,8 @@ import pandas as pd
 import seaborn as sns
 import logging
 import sys
+import time
+from IPython.display import clear_output, display
 
 from abc import ABCMeta, abstractmethod
 from imblearn.over_sampling import *
@@ -585,7 +587,7 @@ class DataFactory:
         grid.fit(X_train, y_train)
         best_model = grid.best_estimator_
         y_pred = best_model.predict(X_test)
-        score = _get_score(y_pred, y_test, mtype)
+        score = self._get_score(y_pred, y_test, mtype)
         
         self.logger.info(f'...End search')
         self.logger.info(f'Best parameters are: {grid.best_params_}')
@@ -616,7 +618,7 @@ class DataFactory:
         
         return learn
     
-    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, method: str='hyperopt', models:list=['decision_tree'], mtype='C', params: Dict=dict()):
+    def finetune(self, dfx: pd.DataFrame, dfy: pd.Series=None, max_evals=32, cv: int=5, method: str='hyperopt', models:list=['decision_tree'], mtype='C', params: Dict=dict()):
         """Finetunes one or multiple models according to the given method.
         
         Keyword arguments:
@@ -631,30 +633,31 @@ class DataFactory:
         best_model -- the model with the highest score
         best_score -- score of the best model
         """
-        self.logger.info(f'Start finetuning...')
         if method == 'auto_sklearn':
             best_model, best_score = self._finetune_auto_sklearn(dfx, dfy, mtype=mtype, params=params)
         elif method == 'hyperopt':
-            best_model, best_score, best_params = self._finetune_hyperopt(dfx, dfy, params, models, cv, mtype)
+            best_model = self._finetune_hyperopt(dfx, dfy, params, models, max_evals, cv, mtype)
             m_str = util.model_to_string(best_model)
-            self.logger.info(f'...End finetuning')
-            del best_params['cv']
-            del best_params['model']
-            del best_params['type']
-            self.logger.info(f'Best model is: {m_str} with parameters: {best_params}')
         elif method == 'native':
-            ms = dict()
+            model_results = dict()
             strategy = params.get('strategy', 'random')
             if 'strategy' in params:
                 del params['strategy']
-            for m in models:
-                m_params = ss.get_sklearn_search_space(m, mtype, params)
-                ms[m] = self._finetune_native(dfx, dfy, cv=cv, model=m, mtype=mtype, params=m_params.copy(), strategy=strategy) 
-            m_str = max(ms.items(), key=operator.itemgetter(0))[0]
-            best_model, best_score, best_params = ms[m_str]
-            self.logger.info(f'...End finetuning')
-            self.logger.info(f'Best model is: {m_str} with parameters: {best_params}')
-        return best_model, best_score
+                
+            results = pd.DataFrame(columns=['Model', 'Best Score', 'Best Hyperparams', 'Time'])     
+                
+            for i, m in enumerate(models):
+                start = time.time()
+                model_params = ss.get_sklearn_search_space(m, mtype, params)
+                model_results[m] = self._finetune_native(dfx, dfy, max_evals=max_evals, cv=cv, model=m, mtype=mtype, params=model_params.copy(), strategy=strategy) 
+                elapsed = time.time() - start
+                results.loc[i] = [util.model_to_string(model_results[m][0]), model_results[m][1], model_results[m][2], elapsed]
+                results.sort_values(by='Best Score', ascending=False, ignore_index=True, inplace=True)
+                clear_output()
+                display(results)
+            model_str = max(model_results.items(), key=operator.itemgetter(0))[0]
+            best_model, _, _ = model_results[model_str]
+        return best_model
     
     def _finetune_auto_sklearn(self, dfx: pd.DataFrame, dfy: pd.Series=None, mtype: str='C', params: Dict=dict()):
         # TODO maybe delet params
@@ -672,7 +675,7 @@ class DataFactory:
         return best_model, best_score
        
     
-    def _finetune_native(self, dfx: pd.DataFrame, dfy: pd.Series=None, cv: int=5, model='decison_tree', mtype='C', params: Dict=dict(), strategy='random'):
+    def _finetune_native(self, dfx: pd.DataFrame, dfy: pd.Series=None, max_evals=32, cv: int=5, model='decison_tree', mtype='C', params: Dict=dict(), strategy='random'):
         """Finetunes a given model with sklearn.
         
         Keyword arguments:
@@ -686,20 +689,19 @@ class DataFactory:
         best_model -- the model with the highest score
         best_score -- score of the best model
         """
-        self.logger.info(f'Start search for best parameters of: {model}...')
         if util.get_library(model) == 'sklearn':
             X_train, X_test, y_train, y_test = train_test_split(dfx, dfy)
             model = self._get_model(mtype, model)
             if strategy == 'grid':
                 search = GridSearchCV(model, param_grid=params, refit=True, cv=cv, n_jobs=-1)
             elif strategy == 'random':
-                search = RandomizedSearchCV(model, param_distributions=params, refit=True, cv=cv, n_jobs=-1)
+                search = RandomizedSearchCV(model, param_distributions=params, refit=True, cv=cv, n_jobs=-1, n_iter=max_evals)
             else:
                 self.logger.error('Unknown strategy')
 
             search.fit(X_train, y_train)
+            
             best_model = search.best_estimator_
-
             y_pred = best_model.predict(X_test)        
             best_score = self._get_score(y_pred, y_test, mtype)
             best_params = best_model.get_params()
@@ -712,21 +714,16 @@ class DataFactory:
             lr_max = params.get('lr_max', 1e-3)
             
             dsets = TSDatasets(dfx, dfy, tfms=tfms, splits=splits)
-            dls   = TSDataLoaders.from_dsets(dsets.train, dsets.valid, bs=bs)
+            dls = TSDataLoaders.from_dsets(dsets.train, dsets.valid, bs=bs)
             
             model = self._get_network(model)
             # todo use f1 instead of accuracy
             learn = Learner(dls, model,  metrics=accuracy)
             learn.fit_one_cycle(epochs, lr_max)
             best_model = learn
-            best_score = learn.recorder.values[-1][2]
-            best_params = arch_config
-        
-        self.logger.info(f'...End search')
-        self.logger.info(f'Best parameters are: {best_params} with score {best_score:.2f}')
         return best_model, best_score, best_params
     
-    def _finetune_hyperopt(self, dfx: pd.DataFrame, dfy: pd.Series, params, models, cv, mtype):
+    def _finetune_hyperopt(self, dfx: pd.DataFrame, dfy: pd.Series, params, models, max_evals, cv, mtype):
         self.X = dfx
         self.y = dfy
         trials = Trials()
@@ -748,15 +745,23 @@ class DataFactory:
             fn=self._objective, 
             space=search_space,
             algo=algo,
-            max_evals=32,
+            max_evals=max_evals,
             trials=trials)
-            
-        best_params = hyperopt.space_eval(search_space, best_result)
         
         best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
-        best_score = -trials.results[np.argmin([r['loss'] for r in trials.results])]['loss']
         
-        return best_model, best_score, best_params   
+        results = pd.DataFrame(columns=['Model', 'Score', 'Hyperparams', 'Time'])
+        
+        for i, r in enumerate(trials.results):
+            model = util.model_to_string(r['model'])
+            score = -r['loss']
+            params = r['params']
+            elapsed = r['elapsed']
+            results.loc[i] = [model, score, params, elapsed]
+        results.sort_values(by='Score', ascending=False, ignore_index=True, inplace=True)
+        display(results)
+        
+        return best_model
     
     def _relative_absolute_error(self, pred, y):
         dis = abs((pred-y)).sum()
@@ -765,7 +770,7 @@ class DataFactory:
             return 1
         return dis/dis2
     
-    def _get_score(self, y_pred, y_test, mtype):
+    def _get_score(self, y_pred, y_test, mtype='C'):
         if mtype == 'C':
             score = f1_score(y_test, y_pred, average='weighted')
         elif mtype == 'R':
@@ -775,13 +780,15 @@ class DataFactory:
         return score
             
     def _objective(self, params):
+        start = time.time()
         model = params['model']
         mtype = params['type']
         cv = params['cv']
+        results = params['results']
         del params['model']
         del params['type']
         del params['cv']
-        
+        del params['results']
         
         if util.get_library(model) == 'tsai':
             params = params.copy()
@@ -796,22 +803,32 @@ class DataFactory:
         m = self._get_model(mtype, model, params)
         
         # TODO use f1 instead of accuracy
-        if util.get_library(model) == 'sklearn': 
-            score = cross_val_score(m, self.X, self.y, cv=cv, scoring='accuracy').mean()
+        if util.get_library(model) == 'sklearn':
             #score = cross_val_score(m, self.X, self.y, cv=cv, scoring='f1_weighted').mean()
+            score = cross_val_score(m, self.X, self.y, cv=cv, scoring='accuracy').mean()
         elif util.get_library(model) == 'tsai':
-            score = self.cross_val_score_tsai(m, cv, epochs, lr_max).mean()
-        return {'loss': -score, 'status': STATUS_OK, 'model': m}
+            score = self.cross_val_score_tsai(m, cv, epochs, lr_max, mtype).mean()
+            params = params.copy()
+            params['epochs'] = epochs
+            params['lr_max'] = lr_max
+            if 'metrics' in params:
+                del params['metrics']
+            clear_output()  
+            
+        elapsed = time.time() - start
+        return {'loss': -score, 'status': STATUS_OK, 'model': m, 'elapsed': elapsed, 'params': params}
         
-    def cross_val_score_tsai(self, model, cv, epochs, lr_max):
+    def cross_val_score_tsai(self, model, cv, epochs, lr_max, mtype):
         scores = np.zeros(cv)
         for i in range(cv):
             model.fit_one_cycle(epochs, lr_max=lr_max)
-            # TODO how to use f1 instead of accuracy?
+            #y_pred, _, _ = model.get_preds(self.X)
+            #scores.append(self._get_score(y_pred, self.y, mtype))
             scores[i] = model.recorder.values[-1][2]
         return scores
         
     def _get_model(self, mtype, model, params=dict()):
+        params = params.copy()
         if model == 'decision_tree':
             if mtype=='C':
                 return tree.DecisionTreeClassifier(**params)

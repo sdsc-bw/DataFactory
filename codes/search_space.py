@@ -14,6 +14,22 @@ svm = 'svm'
 bay = 'bayesian'
 it = 'inception_time'
 itp = 'inception_time_plus'
+lstm = 'lstm'
+gru = 'gru'
+mlp = 'mlp'
+fcn = 'fcn'
+res = 'res_net'
+lfcn = 'lstm_fcn'
+gfcn = 'gru-fcn'
+mwdn = 'mwdn'
+tcn = 'tcn'
+xt = 'xception_time'
+cnn = 'res_cnn'
+tab = 'tab_model'
+omni = 'omni_scale'
+tst = 'tst'
+xcm = 'xcm'
+mro = 'mini_rocket'
 
 learner = 'learner'
 
@@ -43,6 +59,21 @@ hp_std_inception_time = {'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 
 #hp_std_learner = {'epochs': 25, 'lr_max': 1e-3}
 #hp_std_inception_time = {}
 hp_std_inception_time_plus = {'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 128]), 'fc_dropout': hp.choice('fc_dropout_ipt', [0.3, 0.5])}
+hp_std_lstm = {}
+hp_std_gru = {}
+hp_std_mlp = {}
+hp_std_fcn = {}
+hp_std_res = {}
+hp_std_lfcn = {}
+hp_std_gfcn = {}
+hp_std_mwdn = {}
+hp_std_tcn = {}
+hp_std_xt = {}
+hp_std_cnn = {}
+hp_std_tab = {}
+hp_std_omni = {}
+hp_std_tst= {}
+hp_std_mro= {}
 
 def get_sklearn_search_space(model: str, mtype:str, params):
     if model in params:
@@ -79,6 +110,7 @@ def get_sklearn_search_space(model: str, mtype:str, params):
 
 def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
     search_space_list = []
+    results = pd.DataFrame(columns=['Model', 'Score', 'Hyperparams', 'Time'])
     if dt in models:
         if dt not in params:
             if mtype == 'C':
@@ -90,6 +122,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
             model_space['model'] = dt
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'random_forest' in models:
         if rf not in params:
@@ -99,6 +132,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
             model_space['model'] = rf
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'adaboost' in models:
         if ab not in params:
@@ -109,6 +143,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space = hp_std_adaboost.copy()
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'knn' in models:
         if knn not in params:
@@ -119,6 +154,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space = hp_std_knn.copy()
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'gbdt' in models:
         if gbdt not in params:
@@ -129,6 +165,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space = hp_std_gbdt.copy()
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'gaussian_nb' in models:
         if nb not in params:
@@ -138,6 +175,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
             model_space['model'] = nb
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'svm' in models:
         if svm not in params:
@@ -148,6 +186,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
         model_space = hp_std_svm.copy()
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'bayesian' in models:   
         if bay not in params:
@@ -157,15 +196,7 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
             model_space['model'] = bay
         model_space['type'] = mtype
         model_space['cv'] = cv
-        search_space_list.append(model_space)
-    if 'learner' in models:
-        if learner in params:
-            model_space = hp_std_learner.copy()
-        else:
-            model_space = params[learner]
-            model_space['model'] = learner
-        model_space['type'] = mtype
-        model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
     if 'inception_time' in models:
         if it not in params:
@@ -180,6 +211,262 @@ def get_hyperopt_search_space(models: list, mtype:str, cv:int, params):
             model_space['model'] = it
         model_space['type'] = mtype
         model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)        
+    if 'inception_time_plus' in models:
+        if itp not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_inception_time_plus.copy()
+            model_space['model'] = itp
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[itp]:
+                del params[itp]['learner']
+            model_space['arch_config'] = params[itp]
+            model_space['model'] = itp
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'lstm' in models:
+        if lstm not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_lstm.copy()
+            model_space['model'] = lstm
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[lstm]:
+                del params[lstm]['learner']
+            model_space['arch_config'] = params[lstm]
+            model_space['model'] = lstm
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'gru' in models:
+        if gru not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_gru.copy()
+            model_space['model'] = gru
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[gru]:
+                del params[gru]['learner']
+            model_space['arch_config'] = params[gru]
+            model_space['model'] = gru
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'mlp' in models:
+        if mlp not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_mlp.copy()
+            model_space['model'] = mlp
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[mlp]:
+                del params[mlp]['learner']
+            model_space['arch_config'] = params[mlp]
+            model_space['model'] = mlp
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'fcn' in models:
+        if fcn not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_fcn.copy()
+            model_space['model'] = fcn
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[fcn]:
+                del params[fcn]['learner']
+            model_space['arch_config'] = params[fcn]
+            model_space['model'] = fcn
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'res_net' in models:
+        if res not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_res.copy()
+            model_space['model'] = res
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[res]:
+                del params[res]['learner']
+            model_space['arch_config'] = params[res]
+            model_space['model'] = res
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'lstm_fcn' in models:
+        if lfcn not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_lfcn.copy()
+            model_space['model'] = lfcn
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[lfcn]:
+                del params[lfcn]['learner']
+            model_space['arch_config'] = params[lfcn]
+            model_space['model'] = lfcn
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'gru_fcn' in models:
+        if gfcn not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_gfcn.copy()
+            model_space['model'] = gfcn
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[gfcn]:
+                del params[gfcn]['learner']
+            model_space['arch_config'] = params[gfcn]
+            model_space['model'] = gfcn
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'mwdn' in models:
+        if mwdn not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_mwdn.copy()
+            model_space['model'] = mwdn
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[mwdn]:
+                del params[mwdn]['learner']
+            model_space['arch_config'] = params[mwdn]
+            model_space['model'] = mwdn
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'tcn' in models:
+        if tcn not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_tcn.copy()
+            model_space['model'] = tcn
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[tcn]:
+                del params[tcn]['learner']
+            model_space['arch_config'] = params[tcn]
+            model_space['model'] = tcn
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'xception_time' in models:
+        if xt not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_xt.copy()
+            model_space['model'] = xt
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[xt]:
+                del params[xt]['learner']
+            model_space['arch_config'] = params[xt]
+            model_space['model'] = xt
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'res_cnn' in models:
+        if cnn not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_cnn.copy()
+            model_space['model'] = cnn
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[cnn]:
+                del params[cnn]['learner']
+            model_space['arch_config'] = params[cnn]
+            model_space['model'] = cnn
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'tab_model' in models:
+        if tab not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_tab.copy()
+            model_space['model'] = tab
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[tab]:
+                del params[tab]['learner']
+            model_space['arch_config'] = params[tab]
+            model_space['model'] = tab
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'omni_scale' in models:
+        if omni not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_omni.copy()
+            model_space['model'] = omni
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[omni]:
+                del params[omni]['learner']
+            model_space['arch_config'] = params[omni]
+            model_space['model'] = omni
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'tst' in models:
+        if tst not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_tst.copy()
+            model_space['model'] = tst
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[tst]:
+                del params[tst]['learner']
+            model_space['arch_config'] = params[tst]
+            model_space['model'] = tst
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'xcm' in models:
+        if xcm not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_xcm.copy()
+            model_space['model'] = xcm
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[xcm]:
+                del params[xcm]['learner']
+            model_space['arch_config'] = params[xcm]
+            model_space['model'] = xcm
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
+        search_space_list.append(model_space)
+    if 'mini_rocket' in models:
+        if mro not in params:
+            model_space = hp_std_learner.copy()
+            model_space['arch_config'] = hp_std_mro.copy()
+            model_space['model'] = mro
+        else:
+            model_space = params.get('learner', hp_std_learner.copy())
+            if 'learner' in params[mro]:
+                del params[mro]['learner']
+            model_space['arch_config'] = params[mro]
+            model_space['model'] = mro
+        model_space['type'] = mtype
+        model_space['cv'] = cv
+        model_space['results'] = results
         search_space_list.append(model_space)
         
     search_space_model = hp.choice('classifier_type', search_space_list)
