@@ -2,7 +2,7 @@ import pandas as pd
 import hyperopt
 import time
 import sys
-from hyperopt import fmin, tpe, rand, hp, SparkTrials, STATUS_OK, Trials
+from hyperopt import fmin, tpe, rand, hp, STATUS_OK, Trials
 import mlflow
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from tsai.all import *

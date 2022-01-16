@@ -43,7 +43,6 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     oe = OneHotEncoder(drop='first')
     # oe
     if dat_categ_onehot.shape[1] > 0:
-        print(type(dat_categ_onehot.columns.to_list()))
         logger.info('Start with one-hot encoding of the following categoric features: '+ (str(dat_categ_onehot.columns.to_list())) + '...')
         dat_onehot = pd.DataFrame(oe.fit_transform(dat_categ_onehot.astype(str)).toarray(), 
                                   columns=oe.get_feature_names(dat_categ_onehot.columns))
