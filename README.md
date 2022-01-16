@@ -1,11 +1,12 @@
 # DataFactory
-This is a package developed by SDSC engineers for datamining and machine learning. It unites and unifies methods from different packages like [imblearn](https://imbalanced-learn.org/stable/), [sklearn](https://scikit-learn.org/stable/index.html), [auto-sklearn](https://automl.github.io/auto-sklearn/master/), [hyperopt](https://github.com/hyperopt/hyperopt) and [tsai](https://github.com/timeseriesAI/tsai).
+This is a package developed by SDSC engineers for datamining and machine learning. It unites and unifies methods from different packages like [imblearn](https://imbalanced-learn.org/stable/), [sklearn](https://scikit-learn.org/stable/index.html), [auto-sklearn](https://automl.github.io/auto-sklearn/master/), [hyperopt](https://github.com/hyperopt/hyperopt) and [tsai](https://github.com/timeseriesAI/tsai). 
+The common dataminig process and how to use the DataFactory for this is shown in our [demos](https://github.com/sdsc-bw/DataFactory/tree/develop/demos).
 
 ## Preprocessing
 We offer methods for data preprocessing. This includes label encoding, data balancing, sampling and dealing with NA values and outliers.
 
 ## Feature Engineering
-In addition to that, we provide functions for feature engineering. This includes unsupervised (unary, binary and multiple) and supervised transformations.
+In addition to that, we provide functions for feature engineering. This includes unary, binary and multiple transformations.
 
 ## Finetuning
 We also provide methods from some common finetuning packages like [sklearn](https://scikit-learn.org/stable/index.html), [auto-sklearn](https://automl.github.io/auto-sklearn/master/), [hyperopt](https://github.com/hyperopt/hyperopt). (Note that sklearn and auto-sklearn only support sklearn models).
