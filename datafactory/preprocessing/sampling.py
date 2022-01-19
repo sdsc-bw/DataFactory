@@ -1,3 +1,8 @@
+'''
+Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
+All rights reserved.
+'''
+
 import pandas as pd
 import numpy as np
 from imblearn.over_sampling import *

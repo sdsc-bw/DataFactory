@@ -1,3 +1,8 @@
+'''
+Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
+All rights reserved.
+'''
+
 from sklearn.metrics import f1_score
 
 from .constants import logger

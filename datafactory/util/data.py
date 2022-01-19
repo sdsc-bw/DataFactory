@@ -1,3 +1,8 @@
+'''
+Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
+All rights reserved.
+'''
+
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader

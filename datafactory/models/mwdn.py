@@ -1,3 +1,8 @@
+'''
+Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
+All rights reserved.
+'''
+
 import pandas as pd
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from tsai.all import mWDN

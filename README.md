@@ -1,5 +1,5 @@
 # DataFactory
-This Github is mainly used to introduce some commonly used methods, as well as some feature engineering methods independently researched and developed by SDSC staff. It unites and unifies methods from different packages like [imblearn](https://imbalanced-learn.org/stable/), [sklearn](https://scikit-learn.org/stable/index.html), [auto-sklearn](https://automl.github.io/auto-sklearn/master/), [hyperopt](https://github.com/hyperopt/hyperopt) and [tsai](https://github.com/timeseriesAI/tsai). 
+This Github is mainly used to introduce some commonly used methods, as well as some feature engineering methods independently researched and developed by SDSC staff. It unites and unifies methods from different packages like [imblearn](https://imbalanced-learn.org/stable/), [sklearn](https://scikit-learn.org/stable/index.html), [hyperopt](https://github.com/hyperopt/hyperopt) and [tsai](https://github.com/timeseriesAI/tsai). 
 The common dataminig process and how to use the DataFactory for this is shown in our [demos](https://github.com/sdsc-bw/DataFactory/tree/develop/demos).
 
 ## Preprocessing
@@ -9,7 +9,7 @@ We offer methods for data preprocessing. This includes label encoding, data bala
 In addition to that, we provide functions for feature engineering. This includes unary, binary and multiple transformations.
 
 ## Finetuning
-We also provide methods from some common finetuning packages like [sklearn](https://scikit-learn.org/stable/index.html), [auto-sklearn](https://automl.github.io/auto-sklearn/master/), [hyperopt](https://github.com/hyperopt/hyperopt). (Note that sklearn and auto-sklearn only support sklearn models).
+We also provide a finetuning method based on [hyperopt](https://github.com/hyperopt/hyperopt).
 
 Here is a complete list of our supported models:
 

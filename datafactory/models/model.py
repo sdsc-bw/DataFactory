@@ -1,3 +1,8 @@
+'''
+Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
+All rights reserved.
+'''
+
 from abc import ABCMeta, abstractmethod
 from sklearn.model_selection import train_test_split, cross_val_score
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
