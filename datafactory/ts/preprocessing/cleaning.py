@@ -9,8 +9,8 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, IterativeImputer
 import sys
 
-sys.path.append('../util')
-from ..util.constants import logger
+sys.path.append('../../util')
+from ...util.constants import logger
 
 def clean_data(data: pd.DataFrame, strategy: str='model') -> pd.DataFrame:
     """Clean dataset of INF- and NAN-values.

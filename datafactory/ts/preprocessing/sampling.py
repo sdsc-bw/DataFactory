@@ -11,8 +11,8 @@ from imblearn.combine import *
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 import sys
 
-sys.path.append('../util')
-from ..util.constants import logger
+sys.path.append('../../util')
+from ...util.constants import logger
 
 def sampling_up(X: pd.DataFrame, y: pd.Series, strategy: str = 'SMOTE', random_state: int = None) -> Tuple[pd.DataFrame, pd.Series]:
     """Samples down dataset based on given sampling strategy.

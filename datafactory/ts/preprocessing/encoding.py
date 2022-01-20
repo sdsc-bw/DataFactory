@@ -7,8 +7,8 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 import sys
 
-sys.path.append('../util')
-from ..util.constants import logger
+sys.path.append('../../util')
+from ...util.constants import logger
 
 def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: bool=True):
     """Categorical feature encoding of given dataframes

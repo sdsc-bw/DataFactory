@@ -2,7 +2,6 @@
 Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
 All rights reserved.
 '''
-
 import pandas as pd
 import hyperopt
 import time
@@ -12,38 +11,38 @@ import mlflow
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from tsai.all import *
 
-from .search_space_hyperopt import std_search_space
+from .search_space import std_search_space
 
-sys.path.append('../models')
-from ..models.decision_tree import DecisionTree
-from ..models.random_forest import RandomForest
-from ..models.ada_boost import AdaBoost
-from ..models.knn import KNN
-from ..models.svm import SVM
-from ..models.gbdt import GBDT
-from ..models.gaussian_nb import GaussianNB
-from ..models.bayesian_ridge import BayesianRidge
-from ..models.inception_time import InceptionTime
-from ..models.inception_time_plus import InceptionTimePlus
-from ..models.fcn import FCN
-from ..models.gru import GRU
-from ..models.gru_fcn import GRUFCN
-from ..models.lstm import LSTM
-from ..models.lstm_fcn import LSTMFCN
-from ..models.mini_rocket import MiniRocket
-from ..models.mlp import MLP
-from ..models.mwdn import MWDN
-from ..models.omni_scale import OmniScale
-from ..models.res_cnn import ResCNN
-from ..models.res_net import ResNet
-from ..models.tab_model import TabModel
-from ..models.tcn import TCN
-from ..models.tst import TST
-from ..models.xception_time import XceptionTime
-from ..models.xcm import XCM
+sys.path.append('../../models')
+from ...models.decision_tree import DecisionTree
+from ...models.random_forest import RandomForest
+from ...models.ada_boost import AdaBoost
+from ...models.knn import KNN
+from ...models.svm import SVM
+from ...models.gbdt import GBDT
+from ...models.gaussian_nb import GaussianNB
+from ...models.bayesian_ridge import BayesianRidge
+from ...models.inception_time import InceptionTime
+from ...models.inception_time_plus import InceptionTimePlus
+from ...models.fcn import FCN
+from ...models.gru import GRU
+from ...models.gru_fcn import GRUFCN
+from ...models.lstm import LSTM
+from ...models.lstm_fcn import LSTMFCN
+from ...models.mini_rocket import MiniRocket
+from ...models.mlp import MLP
+from ...models.mwdn import MWDN
+from ...models.omni_scale import OmniScale
+from ...models.res_cnn import ResCNN
+from ...models.res_net import ResNet
+from ...models.tab_model import TabModel
+from ...models.tcn import TCN
+from ...models.tst import TST
+from ...models.xception_time import XceptionTime
+from ...models.xcm import XCM
 
-sys.path.append('../util')
-from ..util.constants import logger
+sys.path.append('../../util')
+from ...util.constants import logger
 
 def finetune_hyperopt(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, mtype: str='C'):
     """Finetunes one or multiple models according with hyperopt.

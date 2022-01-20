@@ -9,8 +9,8 @@ from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
 import sys
 
-sys.path.append('../util')
-from ..util.constants import logger
+sys.path.append('../../util')
+from ...util.constants import logger
 
 def outlier_detection_dataframe(df: pd.DataFrame, strategy: str='density') -> pd.Series:
     """Outlier detection of a given dataframe.
