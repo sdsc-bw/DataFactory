@@ -25,8 +25,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 
-sys.path.append('../util')
-from ..util.data import Data_rb_cla, Data_rb_reg, MLP
+sys.path.append('../../util')
+from ...util.datasets import Data_rb_cla, Data_rb_reg, MLP
 
 class Transform(metaclass=ABCMeta):
     

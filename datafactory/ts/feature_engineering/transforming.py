@@ -11,10 +11,9 @@ from .transformations_binary import *
 from .transformations_multi import *
 from .transformations_transform import *
 
-
 import sys
-sys.path.append('../util')
-from ..util.constants import logger
+sys.path.append('../../util')
+from ...util.constants import logger
 
 
 def load_opts(transform_type: str) -> Dict[str, Union[UnaryOpt, BinaryOpt]]:
@@ -74,7 +73,7 @@ def apply_unary_transformations_to_series(value: pd.Series) -> pd.DataFrame:
     transformed_values = pd.concat(values, axis = 1)
     return transformed_values
 
-def apply_binary_transformations_to_series( value1: pd.Series, value2: pd.Series) -> pd.DataFrame:
+def apply_binary_transformations_to_series(value1: pd.Series, value2: pd.Series) -> pd.DataFrame:
     """Applies all binary transformations to a given series.
     
     Keyword arguments:
