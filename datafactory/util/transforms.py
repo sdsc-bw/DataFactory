@@ -10,14 +10,6 @@ from typing import cast, Any, Dict, List, Tuple, Optional, Union
 
 from .constants import logger
 
-def get_transforms_ts(transform: List, params: Dict=dict()):    
-    ## TODO implement
-    pass
-
-def apply_transforms_ts(df: pd.DataFrame, params: Dict=dict()):
-    ## TODO implement
-    pass
-
 def get_transforms_cv(transform: List, params: Dict=dict()):
     transform_compose = []
     if transform:

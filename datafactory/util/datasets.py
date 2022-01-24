@@ -24,15 +24,15 @@ TS_DATASETS = ['iris', 'wine', 'diabetes', 'breast_cancer']
 CV_DATASETS = ['mnist', 'fashion_mnist', 'cifar', 'celeba']
 
 
-def load_dataset(name: str, shuffle: bool=False, split: bool=False, transform: List=None, transform_params: Dict=None):
+def load_dataset(name: str, shuffle: bool=False, split: bool=False, transform: Any=None, transform_params: Dict=None):
     if name in TS_DATASETS:
-        return _load_ts_dataset(name, shuffle=shuffle, split=split)
+        return _load_ts_dataset(name, shuffle=shuffle, split=split, transform=transform)
     elif name in CV_DATASETS: 
-        return _load_cv_dataset(name, shuffle=shuffle, split=split)
+        return _load_cv_dataset(name, shuffle=shuffle, split=split, transform=transform, transform_params=transform_params)
     else:
         logger.error('Unknown dataset')
 
-def _load_ts_dataset(name: str, shuffle: bool=False, split: bool=False, transform: List=None, transform_params: Dict=None):
+def _load_ts_dataset(name: str, shuffle: bool=False, split: bool=False, transform: Dict=None):
     if name == 'iris':
         dataset = load_iris()
     elif name == 'wine':
@@ -48,8 +48,7 @@ def _load_ts_dataset(name: str, shuffle: bool=False, split: bool=False, transfor
     df['target'] = pd.Series(dataset.target)
     
     if transform:
-        transform = get_transforms_ts(transform)
-        df = apply_transforms(df, transform, transform_params)
+        df = apply_transforms(df, transform)
     
     if shuffle:
         df = sklearn.utils.shuffle(df)
