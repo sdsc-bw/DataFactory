@@ -7,17 +7,17 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 
-from .transformations_unary import *
-from .transformations_binary import *
-from .transformations_multi import *
-from .transformations_transform import *
+from .transforms_unary import *
+from .transforms_binary import *
+from .transforms_multi import *
+from .transforms_transform import *
 
 import sys
 sys.path.append('../../util')
 from ...util.constants import logger    
             
 def load_transforms(transform_type: str) -> Dict[str, Union[UnaryOpt, BinaryOpt]]:
-    """Retruns all transformations of a given type.
+    """Returns all transformations of a given type.
     
     Keyword arguments:
     transform_type -- Transformation type
@@ -69,17 +69,17 @@ def apply_transforms(df: pd.DataFrame, transform: List):
         trfm = t[0]
         if trfm in TRANSFORMS_UNARY:
             value = df[t[1]]
-            tmp = apply_unary_transformations_to_series(value, transform=[trfm])
+            tmp = apply_unary_transforms_to_series(value, transform=[trfm])
         elif trfm in TRANSFORMS_BINARY:
             value1 =  df[t[1]]
             value2 =  df[t[2]]
-            tmp = apply_binary_transformations_to_series(value1, value2, transform=[trfm])
+            tmp = apply_binary_transforms_to_series(value1, value2, transform=[trfm])
         elif trfm in TRANSFORMS_MULTI:
             tmp_df = df[list(t[1:])]
-            tmp = apply_multiple_transformations_to_dataframe(tmp_df, transform=[trfm])
+            tmp = apply_multiple_transforms_to_dataframe(tmp_df, transform=[trfm])
         elif trfm in TRANSFORMS_CLA_SUPERVISED or trfm in TRANSFORMS_REG_SUPERVISED:
             X_train, X_test, y_train, y_test = train_test_split(df.iloc[:, :-1], df.iloc[:, -1])
-            tmp = apply_supervised_transformations_to_dataframe(X_train, X_test, y_train, y_test, transform=[trfm])
+            tmp = apply_supervised_transforms_to_dataframe(X_train, X_test, y_train, y_test, transform=[trfm])
         else:
             logger.error(f'Unknown transformation')
         new_features.append(tmp)
@@ -87,7 +87,7 @@ def apply_transforms(df: pd.DataFrame, transform: List):
     new_df = pd.concat([df, new_features], axis = 1)
     return new_df
 
-def apply_unary_transformations_to_series(value: pd.Series, transform: List=None) -> pd.DataFrame:
+def apply_unary_transforms_to_series(value: pd.Series, transform: List=None) -> pd.DataFrame:
     """Applies all unary or the defined transformations to a given series.
     
     Keyword arguments:
@@ -112,7 +112,7 @@ def apply_unary_transformations_to_series(value: pd.Series, transform: List=None
     transformed_values = pd.concat(values, axis = 1)
     return transformed_values
 
-def apply_binary_transformations_to_series(value1: pd.Series, value2: pd.Series, transform: List=None) -> pd.DataFrame:
+def apply_binary_transforms_to_series(value1: pd.Series, value2: pd.Series, transform: List=None) -> pd.DataFrame:
     """Applies all binary or the defined transformations to a given series.
     
     Keyword arguments:
@@ -138,7 +138,7 @@ def apply_binary_transformations_to_series(value1: pd.Series, value2: pd.Series,
     transformed_values = pd.concat(values, axis = 1)
     return transformed_values
             
-def apply_multiple_transformations_to_dataframe(df: pd.DataFrame, transform: List=None) -> pd.DataFrame:
+def apply_multiple_transforms_to_dataframe(df: pd.DataFrame, transform: List=None) -> pd.DataFrame:
     """Applies all or the defined multiple transformations to a given dataframe.
     
     Keyword arguments:
@@ -163,7 +163,7 @@ def apply_multiple_transformations_to_dataframe(df: pd.DataFrame, transform: Lis
     transformed_dfs = pd.concat(dfs, axis = 1)
     return transformed_dfs
     
-def apply_supervised_transformations_to_dataframe(X_train: pd.DataFrame, X_test: pd.DataFrame,
+def apply_supervised_transforms_to_dataframe(X_train: pd.DataFrame, X_test: pd.DataFrame,
                                                    y_train: pd.Series, y_test: pd.Series, mtype='C', 
                                                   transform: List=None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Applies transformations for classification to given test and trainings dataframe including their targets.
