@@ -11,13 +11,13 @@ from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from .constants import logger
 
 def get_transforms_cv(transform: List, params: Dict=dict()):
+    if 'to_tensor' not in transform:
+        transform.append('to_tensor')
     transform_compose = []
     if transform:
         for i in transform:
             p = params.get(i, None)
-            transform_compose.append(_get_transform(i, p))
-    else:
-        transform_compose.append(_get_transform('to_tensor', None))
+            transform_compose.append(_get_transform_cv(i, p))
     return transforms.Compose(transform_compose)
         
         

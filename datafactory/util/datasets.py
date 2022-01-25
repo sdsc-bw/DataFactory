@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 import io
+import math
 from sklearn.datasets import load_iris, load_wine, load_diabetes, load_breast_cancer
 from sklearn.model_selection import train_test_split
 import sklearn.utils
@@ -196,13 +197,13 @@ class CSVDataset(Dataset):
             heigth = self.df.loc[idx, 'heigth']
             width = (self.df.shape[1] - 1) // heigth
         else:
-            width = (self.df.shape[1] - 1) // 2
+            width = int(math.sqrt(self.df.shape[1] - 1))
             heigth = width
         
-        array = np.array((width, heigth))
-        for y in range(heigth):
-            for x in range(width):
-                array[x, y] = self.df.loc[idx, 'pix-' + str(x) + str(y)]        
+        array = np.zeros((width, heigth))
+        for y in range(1, heigth):
+            for x in range(1, width):
+                array[x, y] = self.df.loc[idx, str(x) + 'x' + str(y)]        
         X = Image.fromarray(array)                
         if self.transform:
             X = self.transform(X)
@@ -211,6 +212,8 @@ class CSVDataset(Dataset):
             y = self.df.loc[idx, 'target']
         elif 'label' in self.df:
             y = self.df.loc[idx, 'label']
+        elif 'class' in self.df:
+            y = self.df.loc[idx, 'class']
         else:
             logger.error('Target not found')
         return X, y   
