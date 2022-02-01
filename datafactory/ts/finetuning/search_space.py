@@ -52,7 +52,7 @@ std_inception_time = {'model': 'inception_time',
 
 std_inception_time_plus = {'model': 'inception_time_plus',
                            'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 128]), 
-                           'fc_dropout': hp.choice('fc_dropout_ipt', [0.3, 0.5]), 
+                           'fc_dropout': hp.choice('fc_dropout_ipt', [0.0, 0.3]), 
                            'epochs': 25,
                            'lr_max': 1e-3,
                            'metrics': ['accuracy']}
@@ -70,7 +70,7 @@ std_mlp = {'model': 'mlp',
            'use_bn': hp.choice('use_bn_mlp', [True, False]), 
            'bn_final': hp.choice('bn_final_mlp', [True, False]), 
            'lin_first': hp.choice('lin_first_mlp', [True, False]), 
-           'fc_dropout': hp.choice('fc_dropout_mlp', [0.3, 0.5]), 
+           'fc_dropout': hp.choice('fc_dropout_mlp', [0.0, 0.3]), 
            'epochs': 25,
            'lr_max': 1e-3,
            'metrics': ['accuracy']}

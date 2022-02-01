@@ -25,11 +25,12 @@ TS_DATASETS = ['iris', 'wine', 'diabetes', 'breast_cancer']
 CV_DATASETS = ['mnist', 'fashion_mnist', 'cifar', 'celeba']
 
 
-def load_dataset(name: str, shuffle: bool=False, split: bool=False, transform: Any=None, transform_params: Dict=None):
+def load_dataset(name: str, shuffle: bool=False, transform: Any=None, transform_params: Dict=None, ):
     if name in TS_DATASETS:
-        return _load_ts_dataset(name, shuffle=shuffle, split=split, transform=transform)
+        return _load_ts_dataset(name, shuffle=shuffle, transform=transform)
     elif name in CV_DATASETS: 
-        return _load_cv_dataset(name, shuffle=shuffle, split=split, transform=transform, transform_params=transform_params)
+        return _load_cv_dataset(name, shuffle=shuffle, transform=transform, 
+                                transform_params=transform_params)
     else:
         logger.error('Unknown dataset')
 
@@ -55,13 +56,9 @@ def _load_ts_dataset(name: str, shuffle: bool=False, split: bool=False, transfor
         df = sklearn.utils.shuffle(df)
     
     X, y = df.iloc[:, :-1], df.iloc[:, -1]
-    if split:
-        X_train, y_train, X_test, y_test = train_test_split(X, y, test_size=0.2)
-        return X_train, y_train, X_test, y_test
-    else:
-        return X, y
+    return X, y
 
-def _load_cv_dataset(name: str, shuffle: bool=False, split: bool=False, transform: List=None, transform_params: Dict=None):
+def _load_cv_dataset(name: str, shuffle: bool=False, transform: List=None, transform_params: Dict=None):
     if name == 'mnist':
         if transform:
             transform = get_transforms_cv(transform, transform_params)
@@ -91,19 +88,15 @@ def _load_cv_dataset(name: str, shuffle: bool=False, split: bool=False, transfor
         else:
             transform = transforms.Compose([transforms.ToTensor(), 
                                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-        dataset_train = torchvision.datasets.CelebA('../../data', train=True, transform=transform, download=True)
-        dataset_test = torchvision.datasets.CelebA('../../data', train=False, transform=transform, download=True) 
+        dataset = torchvision.datasets.CelebA('../../data', split='all', transform=transform, download=False)
+        train_size = int(0.8 * len(dataset))
+        test_size = len(dataset) - train_size
+        train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
     else:
         logger.error('Unknown dataset')
     
-    if split:
-        X_train, y_train = convert_dataset_to_numpy(dataset_train, shuffle=shuffle)
-        X_test, y_test = convert_dataset_to_numpy(dataset_test, shuffle=shuffle)
-        return X_train, y_train, X_test, y_test
-    else:
-        dataset = torch.utils.data.ConcatDataset([dataset_train, dataset_test])
-        X, y = convert_dataset_to_numpy(dataset, shuffle=shuffle)
-        return X, y
+    dataset = torch.utils.data.ConcatDataset([dataset_train, dataset_test])
+    return dataset
 
 def convert_dataset_to_numpy(dataset, shuffle=False):
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=shuffle)

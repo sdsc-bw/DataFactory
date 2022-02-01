@@ -1,0 +1,1 @@
+SKLEARN_MODELS = ['decision_tree', 'random_forest', 'ada_boost', 'knn', 'gbdt', 'gaussian_nb', 'bayesian']
