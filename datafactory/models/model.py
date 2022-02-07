@@ -10,15 +10,17 @@ from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from tsai.all import *
 import torch
 import torch.optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset 
+from torch.optim.lr_scheduler import ExponentialLR
+import gc
 
 class Model(metaclass=ABCMeta):
     
     @abstractmethod
-    def __init__(self, X, y, mtype: str):
+    def __init__(self, X, y, model_type: str):
         self.X = X
         self.y = y
-        self.mtype = mtype
+        self.model_type = model_type
         self.params = dict()
         self.name = ""
         self.id = ""
@@ -50,8 +52,8 @@ class Model(metaclass=ABCMeta):
     
 class SklearnModel(Model):
     
-    def __init__(self, X: pd.Series, y: pd.Series, mtype: str, params:Dict=dict()):
-        super(SklearnModel, self).__init__(X, y, mtype)
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
+        super(SklearnModel, self).__init__(X, y, model_type)
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y)
         self.params = params
         self.model = None
@@ -73,9 +75,10 @@ class SklearnModel(Model):
     
 class TsaiModel(Model):
     
-    def __init__(self, X: pd.Series, y: pd.Series, mtype: str, params:Dict=dict()):
-        super(TsaiModel, self).__init__(X, y, mtype)
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
+        super(TsaiModel, self).__init__(X, y, model_type)
         self.params = params
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         
         ############## process params #################
         params = self.params.copy()
@@ -110,16 +113,16 @@ class TsaiModel(Model):
         self._init_learner()
             
     def _init_learner(self):
-        if self.mtype == 'C':
+        if self.model_type == 'C':
             learner = TSClassifier
-        elif self.mtype == 'R':
+        elif self.model_type == 'R':
             learner = TSRegressor
-        elif self.mtype == 'F':
+        elif self.model_type == 'F':
             learner = TSForecaster
         else:
             logger.error('Unknown type of model')
         self.learn = learner(self.X, self.y, bs=self.bs, batch_tfms=self.transforms, arch=self.arch, 
-                             metrics=self.metrics, arch_config=self.params_arch)
+                             metrics=self.metrics, arch_config=self.params_arch, device=self.device)
        
     def fit(self):
         self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
@@ -225,16 +228,22 @@ class TsaiModel(Model):
 
 class PytorchCVModel(Model): 
         
-    def __init__(self, dataset: Dataset, mtype: str, params:Dict=dict()):
+    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
         self.params = params
-        self.dataset = dataset
+        self.dataset = dataset        
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        #torch.cuda.empty_cache()
         
         ############## process params #################
         params = self.params.copy()
         self.lr_max = params.get('lr_max', 1e-3)
-        self.epochs = params.get('epochs', 25)
-        self.bs = params.get('batch_size', 64)
-        self._init_training_params()
+        self.epochs = params.get('epochs', 100)
+        self.bs = params.get('batch_size', 16) 
+        self.pretrained = params.get('pretrained', False)
+        self.num_classes = len(dataset.classes)
+        dataset_shape = dataset[0][0].shape
+        self.in_channels = dataset_shape[0]
+        self.in_size = dataset_shape[1], dataset_shape[2]
         ############## process params #################
         
         self.train_size = int(0.8 * len(dataset))
@@ -242,7 +251,6 @@ class PytorchCVModel(Model):
         train_dataset, test_dataset = torch.utils.data.random_split(dataset, [self.train_size, self.test_size])
         self.train_loader = DataLoader(train_dataset, batch_size=self.bs, shuffle=True)  
         self.test_loader = DataLoader(test_dataset, batch_size=self.bs, shuffle=False)
-        self.model = self._init_model()
      
     @abstractmethod
     def _init_model(self):
@@ -251,6 +259,9 @@ class PytorchCVModel(Model):
     def _init_training_params(self):
         self.loss = self.get_loss(self.params.get('loss_func', 'cross_entropy'))
         self.optimizer = self.get_optimizer(self.params.get('opt_func', 'adam'))  
+        self.scheduler = ExponentialLR(self.optimizer, gamma=0.9)
+        torch.cuda.empty_cache()
+        gc.collect()
         
     def fit(self):
         self._train(self.train_loader)
@@ -286,18 +297,25 @@ class PytorchCVModel(Model):
         return outputs.cpu().detach().numpy()
     
     def _train(self, train_loader):
+        self._init_model()
+        self._init_training_params()
         for epoch in range(self.epochs):
             running_loss = 0.0
             for i, data in enumerate(train_loader, 0):
-                inputs, labels = data
+                inputs, labels = data[0].to(self.device), data[1].to(self.device)
                 
                 self.optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = self.loss(outputs, labels)
+                if self.params.get('loss_func', 'cross_entropy') == 'nll':
+                    m = nn.LogSoftmax(dim=1)
+                    loss = self.loss(m(outputs), target)
+                else:
+                    loss = self.loss(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
-                
                 running_loss += loss.item()
+            self.scheduler.step()              
+            
                 
     def _test(self, test_loader):
         correct = 0
@@ -305,7 +323,7 @@ class PytorchCVModel(Model):
         
         with torch.no_grad():
             for data in test_loader:
-                images, labels = data
+                images, labels = data[0].to(device), data[1].to(device)
                 outputs = self.model(images)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)

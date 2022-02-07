@@ -11,9 +11,9 @@ from .model import TsaiModel
 
 class GRU(TsaiModel):
     
-    def __init__(self, X: pd.Series, y: pd.Series, mtype: str, params:Dict=dict()):
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
         self.arch = GRUTsai
-        super(GRU, self).__init__(X, y, mtype, params)
+        super(GRU, self).__init__(X, y, model_type, params)
         
         self.name = "GRU"
         self.id = "gru"

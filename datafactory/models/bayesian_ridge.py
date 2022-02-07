@@ -11,9 +11,9 @@ from .model import SklearnModel
 
 class BayesianRidge(SklearnModel):
     
-    def __init__(self, X: pd.Series, y: pd.Series, mtype: str, params:Dict=dict()):
-        super(BayesianRidge, self).__init__(X, y, mtype, params)
-        if self.mtype == 'R':
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
+        super(BayesianRidge, self).__init__(X, y, model_type, params)
+        if self.model_type == 'R':
             self.model = BayesianRidgeSklearn(**params)
         else:
             logger.error('Unknown type of model')

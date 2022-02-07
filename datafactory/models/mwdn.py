@@ -11,9 +11,9 @@ from .model import TsaiModel
 
 class MWDN(TsaiModel):
     
-    def __init__(self, X: pd.Series, y: pd.Series, mtype: str, params:Dict=dict()):
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
         self.arch = mWDN
-        super(MWDN, self).__init__(X, y, mtype, params)
+        super(MWDN, self).__init__(X, y, model_type, params)
         
         self.name = "mWDN"
         self.id = "mwdn"

@@ -11,9 +11,9 @@ from .model import SklearnModel
 
 class GaussianNB(SklearnModel):
     
-    def __init__(self, X: pd.Series, y: pd.Series, mtype: str, params:Dict=dict()):
-        super(GaussianNB, self).__init__(X, y, mtype, params)
-        if self.mtype == 'C':
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
+        super(GaussianNB, self).__init__(X, y, model_type, params)
+        if self.model_type == 'C':
             self.model = GaussianNBSklearn(**params)
         else:
             logger.error('Unknown type of model')

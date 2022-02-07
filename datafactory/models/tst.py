@@ -11,9 +11,9 @@ from .model import TsaiModel
 
 class TST(TsaiModel):
     
-    def __init__(self, X: pd.Series, y: pd.Series, mtype: str, params:Dict=dict()):
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
         self.arch = TSTTsai
-        super(TST, self).__init__(X, y, mtype, params)
+        super(TST, self).__init__(X, y, model_type, params)
         
         self.name = "TST"
         self.id = "tst"

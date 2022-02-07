@@ -27,6 +27,15 @@ from ...models.gbdt import GBDT
 from ...models.gaussian_nb import GaussianNB
 from ...models.bayesian_ridge import BayesianRidge
 from ...models.res_net import ResNetCV
+from ...models.se_res_net import SEResNet
+from ...models.alex_net import AlexNet
+from ...models.vgg import VGG
+from ...models.efficient_net import EfficientNet
+from ...models.wrn import WRN
+from ...models.reg_net import RegNet
+from ...models.sc_net import SCNet
+from ...models.pnas_net import PNASNet
+from ...models.res_next import ResNeXt
 
 sys.path.append('../../util')
 from ...util.constants import logger
@@ -39,7 +48,7 @@ MODEL_TYPE = None
 CV = 5
 RESULTS = None
 
-def finetune_cv(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, mtype: str='C'):
+def finetune_cv(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C'):
     """Finetunes one or multiple models according with hyperopt.
         
     Keyword arguments:
@@ -50,7 +59,7 @@ def finetune_cv(dataset, strategy: str='random', models: list=['decision_tree'],
     params -- list of dictionaries with parameter to try out
     max_evals -- maximal number of models to finetune
     cv -- number of trainings during cross validation
-    mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
+    model_type -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
     Output:
     the model with the highest score
     """
@@ -64,7 +73,7 @@ def finetune_cv(dataset, strategy: str='random', models: list=['decision_tree'],
     if not set(models).isdisjoint(SKLEARN_MODELS):
         TEMP_X, TEMP_Y = convert_dataset_to_numpy(dataset, shuffle=True)
         TEMP_X = TEMP_X.reshape(len(dataset),-1)
-    MODEL_TYPE = mtype
+    MODEL_TYPE = model_type
     CV = cv
     RESULTS = pd.DataFrame(columns=['Model', 'Score', 'Hyperparams', 'Time'])
     trials = Trials()
@@ -101,7 +110,6 @@ def _objective(params):
     start = time.time()
     model = params['model']
     del params['model']
-        
     model = _get_model(model, params)
         
     clear_output()
@@ -144,6 +152,24 @@ def _get_model(model, params=dict()):
         return BayesianRidge(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'res_net':
         return ResNetCV(DATASET, MODEL_TYPE, params=params)
+    elif model == 'se_res_net':
+        return SEResNet(DATASET, MODEL_TYPE, params=params)
+    elif model == 'res_next':
+        return ResNeXt(DATASET, MODEL_TYPE, params=params)
+    elif model == 'alex_net':
+        return AlexNet(DATASET, MODEL_TYPE, params=params)
+    elif model == 'vgg':
+        return VGG(DATASET, MODEL_TYPE, params=params)
+    elif model == 'efficient_net':
+        return EfficientNet(DATASET, MODEL_TYPE, params=params)
+    elif model == 'wrn':
+        return WRN(DATASET, MODEL_TYPE, params=params)
+    elif model == 'reg_net':
+        return RegNet(DATASET, MODEL_TYPE, params=params)
+    elif model == 'sc_net':
+        return SCNet(DATASET, MODEL_TYPE, params=params)
+    elif model == 'pnas_net':
+        return PNASNet(DATASET, MODEL_TYPE, params=params)
     else:
         logger.error(f'Unknown model: {model}')
 
