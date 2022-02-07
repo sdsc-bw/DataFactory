@@ -48,7 +48,7 @@ MODEL_TYPE = None
 CV = 5
 RESULTS = None
 
-def finetune_cv(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C'):
+def finetune(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C'):
     """Finetunes one or multiple models according with hyperopt.
         
     Keyword arguments:

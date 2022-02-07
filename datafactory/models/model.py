@@ -232,7 +232,6 @@ class PytorchCVModel(Model):
         self.params = params
         self.dataset = dataset        
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        #torch.cuda.empty_cache()
         
         ############## process params #################
         params = self.params.copy()
