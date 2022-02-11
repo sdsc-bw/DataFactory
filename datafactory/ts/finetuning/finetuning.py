@@ -29,7 +29,6 @@ from ...models.gru import GRU
 from ...models.gru_fcn import GRUFCN
 from ...models.lstm import LSTM
 from ...models.lstm_fcn import LSTMFCN
-from ...models.mini_rocket import MiniRocket
 from ...models.mlp import MLP
 from ...models.mwdn import MWDN
 from ...models.omni_scale import OmniScale
@@ -49,8 +48,9 @@ TEMP_Y = None
 MODEL_TYPE = None
 CV = 5
 RESULTS = None
+SCORING = 'f1'
 
-def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C'):
+def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C', scoring='f1'):
     """Finetunes one or multiple models according with hyperopt.
         
     Keyword arguments:
@@ -70,11 +70,13 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
     global MODEL_TYPE
     global CV 
     global RESULTS
+    global SCORING
     TEMP_X = X
     TEMP_Y = y
     MODEL_TYPE = model_type
     CV = cv
     RESULTS = pd.DataFrame(columns=['Model', 'Score', 'Hyperparams', 'Time'])
+    SCORING = scoring
         
     trials = Trials()
     
@@ -103,12 +105,14 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
     MODEL_TYPE = None
     CV = 5
     RESULTS = None
+    SCORING = 'f1'
         
     return best_model
 
 def _objective(params):
     global CV
     global RESULTS
+    global SCORING
     start = time.time()
     model = params['model']
     del params['model']
@@ -117,11 +121,9 @@ def _objective(params):
         
     clear_output()
     display(RESULTS)
-        
-    # TODO use f1 instead of accuracy
     
     logger.info("Running cross validation for: " + model.get_name() + "...")
-    score = model.cross_val_score(cv=CV, scoring='accuracy').mean() 
+    score = model.cross_val_score(cv=CV, scoring=SCORING).mean() 
             
     elapsed = time.time() - start
     
@@ -166,8 +168,6 @@ def _get_model(model, params=dict()):
         return LSTM(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'lstm_fcn':
         return LSTMFCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
-    elif model == 'mini_rocket':
-        return MiniRocket(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'mlp':
         return MLP(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'mwdn':

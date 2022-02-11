@@ -5,7 +5,8 @@ All rights reserved.
 
 from abc import ABCMeta, abstractmethod
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
+from sklearn.utils import shuffle
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from tsai.all import *
 import torch
@@ -17,9 +18,7 @@ import gc
 class Model(metaclass=ABCMeta):
     
     @abstractmethod
-    def __init__(self, X, y, model_type: str):
-        self.X = X
-        self.y = y
+    def __init__(self, model_type: str):
         self.model_type = model_type
         self.params = dict()
         self.name = ""
@@ -53,18 +52,21 @@ class Model(metaclass=ABCMeta):
 class SklearnModel(Model):
     
     def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
-        super(SklearnModel, self).__init__(X, y, model_type)
+        super(SklearnModel, self).__init__(model_type)
+        self.X = X
+        self.y = y
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y)
         self.params = params
         self.model = None
         
     def fit(self):
         model.fit(self.X_train, self.y_test)
-        
-#    def evaluate(self, metric='accuracy'):
 
     def cross_val_score(self, cv=5, scoring='accuracy'):
-        score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring=scoring)
+        if scoring == 'f1':
+            score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring='f1_micro')
+        else:
+            score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring=scoring)
         return score
     
     def predict(self, X: pd.Series):
@@ -76,9 +78,14 @@ class SklearnModel(Model):
 class TsaiModel(Model):
     
     def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
-        super(TsaiModel, self).__init__(X, y, model_type)
+        super(TsaiModel, self).__init__(model_type)
+        self.X = X.to_numpy()
+        if self.X.ndim == 2:
+            self.X = self.X.reshape(self.X.shape[0], self.X.shape[1], 1)
+        self.y = y.to_numpy()
         self.params = params
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
         
         ############## process params #################
         params = self.params.copy()
@@ -88,7 +95,7 @@ class TsaiModel(Model):
         self.transforms = self.get_transforms(params.get('batch_tfms', []))
         self.lr_max = params.get('lr_max', 1e-3)
         self.epochs = params.get('epochs', 25)
-        self.splits = params.get('splits', None)
+        self.splits = TSSplitter(valid_size=0.2, show_plot=False)
         self.bs = params.get('batch_size', [64, 128])
         
         if 'loss_func' in params:
@@ -121,30 +128,45 @@ class TsaiModel(Model):
             learner = TSForecaster
         else:
             logger.error('Unknown type of model')
-        self.learn = learner(self.X, self.y, bs=self.bs, batch_tfms=self.transforms, arch=self.arch, 
+        self.shuffled_X, self.shuffled_y = shuffle(self.X, self.y) 
+        self.splits = TSSplitter()(self.shuffled_X)
+        self.learn = learner(self.shuffled_X, self.shuffled_y, bs=self.bs, splits=self.splits, batch_tfms=self.transforms, arch=self.arch, 
                              metrics=self.metrics, arch_config=self.params_arch, device=self.device)
        
     def fit(self):
         self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
         
-    def cross_val_score(self, cv=5, scoring='accuracy'):
+        
+    def cross_val_score(self, cv=5, scoring='f1'):
         if scoring == 'accuracy':
             scores = np.zeros(cv)
             for i in range(cv):
                 self._init_learner()
                 self.fit()
-                ## TODO change metric from accuracy to f1
                 scores[i] = self.learn.recorder.values[-1][2]
+        elif scoring == 'f1':
+            scores = np.zeros(cv)
+            for i in range(cv):
+                self._init_learner()
+                self.fit()
+                _, targets, preds = self.learn.get_X_preds(self.shuffled_X[self.splits[1]], self.shuffled_y[self.splits[1]])
+                targets = targets.cpu().detach().numpy().tolist()
+                preds = [int(p) for p in preds]
+                scores[i] = f1_score(targets, preds, average='micro')
         clear_output()
         return scores
     
     def predict(self, X: pd.Series):
-        # TODO
-        pass
+        if X.ndim == 2:
+            X = self.X.reshape(X.shape[0], X.shape[1], 1)
+        _, _, preds = learn.get_X_preds(X)
+        return preds
     
     def predict_probas(self, X: pd.Series):
-        # TODO
-        pass
+        if X.ndim == 2:
+            X = self.X.reshape(X.shape[0], X.shape[1], 1)
+        probas, _, _ = learn.get_X_preds(X)
+        return probas
     
     def plot_metrics(self):
         self.learn.plot_metrics()
@@ -229,6 +251,7 @@ class TsaiModel(Model):
 class PytorchCVModel(Model): 
         
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
+        super(PytorchCVModel, self).__init__(model_type)
         self.params = params
         self.dataset = dataset        
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -268,20 +291,17 @@ class PytorchCVModel(Model):
     def evaluate(self):
         self._test(self.test_loader)
 
-    def cross_val_score(self, cv=5, scoring='accuracy'):
-        if scoring == 'accuracy':
-            scores = np.zeros(cv)
-            for i in range(cv):
-                train_dataset, test_dataset = torch.utils.data.random_split(self.dataset, 
-                                                                            [self.train_size, self.test_size], 
-                                                                            generator=torch.Generator().manual_seed(i))
-                train_loader = DataLoader(train_dataset, batch_size=self.bs, shuffle=True)  
-                test_loader = DataLoader(test_dataset, batch_size=self.bs, shuffle=False)
-                self._init_model()
-                self._init_training_params()
-                self._train(train_loader)
-                ## TODO change metric from accuracy to f1
-                scores[i] = self._test(test_loader)
+    def cross_val_score(self, cv=5, scoring='f1'):
+        scores = np.zeros(cv)
+        for i in range(cv):
+            train_dataset, test_dataset = torch.utils.data.random_split(self.dataset, [self.train_size, self.test_size], 
+                                                                        generator=torch.Generator().manual_seed(i))
+            train_loader = DataLoader(train_dataset, batch_size=self.bs, shuffle=True)  
+            test_loader = DataLoader(test_dataset, batch_size=self.bs, shuffle=False)
+            self._init_model()
+            self._init_training_params()
+            self._train(train_loader)
+            scores[i] = self._test(test_loader, scoring=scoring)
         #clear_output()
         return scores
     
@@ -307,7 +327,7 @@ class PytorchCVModel(Model):
                 outputs = self.model(inputs)
                 if self.params.get('loss_func', 'cross_entropy') == 'nll':
                     m = nn.LogSoftmax(dim=1)
-                    loss = self.loss(m(outputs), target)
+                    loss = self.loss(m(outputs), labels)
                 else:
                     loss = self.loss(outputs, labels)
                 loss.backward()
@@ -316,9 +336,11 @@ class PytorchCVModel(Model):
             self.scheduler.step()              
             
                 
-    def _test(self, test_loader):
+    def _test(self, test_loader, scoring='f1'):
         correct = 0
         total = 0
+        preds = []
+        targets = []
         
         with torch.no_grad():
             for data in test_loader:
@@ -327,8 +349,14 @@ class PytorchCVModel(Model):
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-        ## TODO change metric from accuracy to f1    
-        results = correct / total
+                for p in predicted:
+                    preds.append(p.cpu().detach().numpy().tolist())
+                for t in labels:
+                    targets.append(t.cpu().detach().numpy().tolist())  
+        if scoring == 'accuracy':
+            results = correct / total
+        elif scoring == 'f1':
+            results = f1_score(targets, preds, average='micro')
         return results
     
     @staticmethod

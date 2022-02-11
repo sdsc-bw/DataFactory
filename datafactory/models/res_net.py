@@ -55,6 +55,8 @@ class ResNetCV(PytorchCVModel):
             else:
                 self.down_sampling = False
                 self.params['down_sampling'] = False
+                self.model = ptcv_get_model("resnet" + str(self.num_layers), pretrained=self.pretrained, 
+                                        num_classes=self.num_classes, in_size=self.in_size, in_channels=self.in_channels)
         else:
             self.model = ptcv_get_model("resnet" + str(self.num_layers), pretrained=self.pretrained, 
                                         num_classes=self.num_classes, in_size=self.in_size, in_channels=self.in_channels)

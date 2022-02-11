@@ -47,8 +47,9 @@ TEMP_Y = None
 MODEL_TYPE = None
 CV = 5
 RESULTS = None
+SCORING = 'f1'
 
-def finetune(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C'):
+def finetune(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C', scoring='f1'):
     """Finetunes one or multiple models according with hyperopt.
         
     Keyword arguments:
@@ -69,6 +70,7 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
     global MODEL_TYPE
     global CV 
     global RESULTS
+    global SCORING
     DATASET = dataset
     if not set(models).isdisjoint(SKLEARN_MODELS):
         TEMP_X, TEMP_Y = convert_dataset_to_numpy(dataset, shuffle=True)
@@ -76,6 +78,8 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
     MODEL_TYPE = model_type
     CV = cv
     RESULTS = pd.DataFrame(columns=['Model', 'Score', 'Hyperparams', 'Time'])
+    SCORING = scoring
+    
     trials = Trials()
               
     search_space = _get_search_spaces(models, params)
@@ -101,12 +105,14 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
     MODEL_TYPE = None
     CV = 5
     RESULTS = None    
+    SCORING = 'f1'
         
     return best_model
 
 def _objective(params):
     global CV
     global RESULTS
+    global SCORING
     start = time.time()
     model = params['model']
     del params['model']
@@ -114,11 +120,9 @@ def _objective(params):
         
     clear_output()
     display(RESULTS)
-        
-    # TODO use f1 instead of accuracy
     
     logger.info("Running cross validation for: " + model.get_name() + "...")
-    score = model.cross_val_score(cv=CV, scoring='accuracy').mean() 
+    score = model.cross_val_score(cv=CV, scoring=SCORING).mean() 
             
     elapsed = time.time() - start
     
