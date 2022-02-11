@@ -40,7 +40,6 @@ Here is a complete list of our supported models for time series:
 | TabModel          | *tab_model*           | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/TabModel.py)
 | OmniScale         | *omni_scale*          | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/OmniScaleCNN.py)
 | TST               | *tst*                 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/TST.py)
-| MiniRocket        | *mini_rocket*         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/MINIROCKET.py)
 | XCM               | *xcm*                 | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | [see](https://github.com/timeseriesAI/tsai/blob/main/tsai/models/XCM.py)
 
 (C: Classifiction, R: Regression, F: Forecasting)
