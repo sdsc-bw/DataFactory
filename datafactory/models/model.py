@@ -14,6 +14,10 @@ import torch.optim
 from torch.utils.data import DataLoader, Dataset 
 from torch.optim.lr_scheduler import ExponentialLR
 import gc
+import time
+
+sys.path.append('../util')
+from ..util.metrics import score
 
 class Model(metaclass=ABCMeta):
     
@@ -63,10 +67,7 @@ class SklearnModel(Model):
         model.fit(self.X_train, self.y_test)
 
     def cross_val_score(self, cv=5, scoring='accuracy'):
-        if scoring == 'f1':
-            score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring='f1_micro')
-        else:
-            score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring=scoring)
+        score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring=scoring)
         return score
     
     def predict(self, X: pd.Series):
@@ -135,8 +136,7 @@ class TsaiModel(Model):
        
     def fit(self):
         self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
-        
-        
+                
     def cross_val_score(self, cv=5, scoring='f1'):
         if scoring == 'accuracy':
             scores = np.zeros(cv)
@@ -144,7 +144,7 @@ class TsaiModel(Model):
                 self._init_learner()
                 self.fit()
                 scores[i] = self.learn.recorder.values[-1][2]
-        elif scoring == 'f1':
+        else:
             scores = np.zeros(cv)
             for i in range(cv):
                 self._init_learner()
@@ -152,7 +152,7 @@ class TsaiModel(Model):
                 _, targets, preds = self.learn.get_X_preds(self.shuffled_X[self.splits[1]], self.shuffled_y[self.splits[1]])
                 targets = targets.cpu().detach().numpy().tolist()
                 preds = [int(p) for p in preds]
-                scores[i] = f1_score(targets, preds, average='micro')
+                scores[i] = score(targets, preds, scoring)
         clear_output()
         return scores
     
@@ -315,6 +315,19 @@ class PytorchCVModel(Model):
         outputs = self.model(images)
         return outputs.cpu().detach().numpy()
     
+    def _train_and_test(self, train_loader, test_loader):       
+        self._init_model()
+        self._init_training_params()
+        results = pd.DataFrame(columns=['epoch', 'train_loss', 'valid_loss', 'time'])
+        for epoch in range(self.epochs):
+            start = time.time()
+            train_loss, train_acc = self._train_epoch(train_loader)
+            test_loss, test_acc = self._test(test_loader)
+            elapsed = time.time() - start
+            results.loc[i] = [epoch, train_loss, test_loss, int(elapsed)]
+            #clear_output()
+            display(results)
+    
     def _train(self, train_loader):
         self._init_model()
         self._init_training_params()
@@ -333,14 +346,41 @@ class PytorchCVModel(Model):
                 loss.backward()
                 self.optimizer.step()
                 running_loss += loss.item()
-            self.scheduler.step()              
+            self.scheduler.step()    
+            
+    def _train_epoch(self, train_loader):
+        correct = 0
+        total = 0
+        running_loss = 0.0
+        self.model.train()
+        
+        for i, data in enumerate(train_loader, 0):
+            inputs, labels = data[0].to(self.device), data[1].to(self.device)
+                
+            self.optimizer.zero_grad()
+            outputs = self.model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            if self.params.get('loss_func', 'cross_entropy') == 'nll':
+                m = nn.LogSoftmax(dim=1)
+                loss = self.loss(m(outputs), labels)
+            else:
+                loss = self.loss(outputs, labels)
+            loss.backward()
+            self.optimizer.step()
+            running_loss += loss.item()
+        self.scheduler.step()
+        return running_loss, accuracy
             
                 
     def _test(self, test_loader, scoring='f1'):
         correct = 0
         total = 0
+        running_loss = 0.0
         preds = []
         targets = []
+        self.model.eval()
         
         with torch.no_grad():
             for data in test_loader:
@@ -349,15 +389,23 @@ class PytorchCVModel(Model):
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
+                
+                if self.params.get('loss_func', 'cross_entropy') == 'nll':
+                    m = nn.LogSoftmax(dim=1)
+                    loss = self.loss(m(outputs), labels)
+                else:
+                    loss = self.loss(outputs, labels)
+                running_loss += loss.item()
+                
                 for p in predicted:
                     preds.append(p.cpu().detach().numpy().tolist())
                 for t in labels:
                     targets.append(t.cpu().detach().numpy().tolist())  
         if scoring == 'accuracy':
-            results = correct / total
-        elif scoring == 'f1':
-            results = f1_score(targets, preds, average='micro')
-        return results
+            score = correct / total
+        else:
+            score = score(targets, preds, scoring)
+        return running_loss, score
     
     @staticmethod
     def get_loss(loss:str):

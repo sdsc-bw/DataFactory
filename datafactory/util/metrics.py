@@ -5,12 +5,36 @@ All rights reserved.
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 
 from .constants import logger
+
+F1_SCORING = ['f1', 'f1_binary', 'f1_micro', 'f1_weighted', 'f1_macro', 'f1_samples']
+PRECISION_SCORING = ['precision', 'precision_binary', 'precision_micro', 'precision_weighted', 'precision_macro', 'precision_samples']
+RECALL_SCORING = ['recall', 'recall_binary', 'recall_micro', 'recall_weighted', 'recall_macro', 'recall_samples']
+ACCURACY_SCORING = ['accuracy']
+
+
+def score(y_true: List, y_pred: List, scoring: str):
+    if scoring in ACCURACY_SCORING:
+        return accuracy_score(y_true, y_pred)
+    elif scoring in F1_SCORING:
+        average = scoring[3:]
+        average = 'binary' if average == '' else average
+        return f1_score(y_true, y_pred, average=average)
+    elif scoring in PRECISION_SCORING:
+        average = scoring[10:]
+        average = 'binary' if average == '' else average
+        return precision_score(y_true, y_pred, average=average)
+    elif scoring in RECALL_SCORING:
+        average = scoring[7:]
+        average = 'binary' if average == '' else average
+        return recall_score(y_true, y_pred, average=average)
+    else:
+        raise ValueError(f'Unknown scoring: {scoring}')     
 
 def relative_absolute_error(pred, y):
     dis = abs((pred-y)).sum()
