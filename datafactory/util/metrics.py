@@ -43,22 +43,22 @@ def relative_absolute_error(pred, y):
         return 1
     return dis/dis2
     
-def get_score(y_pred, y_test, mtype='C'):
-    if mtype == 'C':
+def get_score(y_pred, y_test, model_type='C'):
+    if model_type == 'C':
         score = f1_score(y_test, y_pred, average='weighted')
-    elif mtype == 'R':
+    elif model_type == 'R':
         score = 1 - relative_absolute_error(y_pred, y_test)
     else:
-        logger.error('Unknown type of model')
+        raise ValueError(f'Unknown type of model: {model}')
         
-def evaluate(X: pd.DataFrame, y: pd.Series, cv: int=5, mtype: str='C') -> Tuple[float, float]:
+def evaluate(X: pd.DataFrame, y: pd.Series, cv: int=5, model_type: str='C') -> Tuple[float, float]:
     """Evaluates a dataset with random forests and f1-scores.
         
     Keyword arguments:
     X -- data
     y -- labels
     cv -- number of random forests
-    mtype -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
+    model_type -- type of the model, should be in ['C', 'R'] (C: Classifier, R: Regressor)
     Output:
     mean of scores
     and variance of scores
@@ -66,17 +66,17 @@ def evaluate(X: pd.DataFrame, y: pd.Series, cv: int=5, mtype: str='C') -> Tuple[
     scores = []
     for i in range(cv):
         X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=i)
-        if mtype == 'C':
+        if model_type == 'C':
             model = RandomForestClassifier(n_estimators=50, random_state=i, n_jobs=-1)
             model.fit(X_train, y_train)
             predict = model.predict(X_test)
             score = f1_score(y_test, predict, average='weighted')
-        elif mtype == 'R':
+        elif model_type == 'R':
             model = RandomForestRegressor(random_state = rf_seed)
             model.fit(X_train, y_train)
             predict = model.predict(X_test)
             score = 1 - relative_absolute_error(predict, y_test)
         else:
-            logger.error('Unknown type of task')
+            raise ValueError(f'Unknown type of model: {model_type}')
         scores.append(score)
     return np.mean(scores), np.std(scores)

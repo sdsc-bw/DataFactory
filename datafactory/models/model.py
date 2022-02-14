@@ -128,7 +128,7 @@ class TsaiModel(Model):
         elif self.model_type == 'F':
             learner = TSForecaster
         else:
-            logger.error('Unknown type of model')
+            raise ValueError(f'Unknown type of model: {model_type}')
         self.shuffled_X, self.shuffled_y = shuffle(self.X, self.y) 
         self.splits = TSSplitter()(self.shuffled_X)
         self.learn = learner(self.shuffled_X, self.shuffled_y, bs=self.bs, splits=self.splits, batch_tfms=self.transforms, arch=self.arch, 
@@ -202,6 +202,7 @@ class TsaiModel(Model):
         elif loss == 'bce':
             return BCEWithLogitsLossFlat() # Regression/Forecasting
         else:
+            logger.warn(f'Unknown loss: {loss}. Using default loss instead')
             return None
                              
     @staticmethod                        
@@ -221,6 +222,7 @@ class TsaiModel(Model):
         if optimizer == 'lamb':
             return Lamb
         else:
+            logger.warn(f'Unknown optimizer: {optimizer}. Using Adam instead')
             return Adam
      
     @staticmethod
@@ -418,7 +420,7 @@ class PytorchCVModel(Model):
         elif loss == 'kl_div':
             return torch.nn.KLDivLoss()
         else:
-            return torch.nn.CrossEntropyLoss()
+            raise ValueError(f'Unknown loss: {loss}')
                                                    
     def get_optimizer(self, optimizer:str):
         if optimizer == 'adam':
@@ -434,5 +436,6 @@ class PytorchCVModel(Model):
         if optimizer == 'rms_prop':
             return optim.RMSprop(model.parameters(), lr=self.lr_max)    
         else:
+            logger.warn(f'Unknown optimizer: {optimizer}. Using Adam instead')
             return torch.optim.Adam(self.model.parameters(), lr=self.lr_max)
     

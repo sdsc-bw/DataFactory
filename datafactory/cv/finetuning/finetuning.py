@@ -89,7 +89,7 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
     elif strategy == 'random':
         algo = rand.suggest
     else:
-        logger.error(f'Unknown strategy: {strategy}')
+        raise ValueError(f'Unknown strategy: {strategy}')
     
     with mlflow.start_run():
         best_result = fmin(
@@ -175,7 +175,7 @@ def _get_model(model, params=dict()):
     elif model == 'pnas_net':
         return PNASNet(DATASET, MODEL_TYPE, params=params)
     else:
-        logger.error(f'Unknown model: {model}')
+        logger.warn(f'Skipping model. Unknown model: {model}')
 
 def _get_search_spaces(models: list, params):
     search_space_list = []
@@ -184,7 +184,7 @@ def _get_search_spaces(models: list, params):
             if model in std_search_space:
                 model_space = std_search_space[model].copy()
             else:
-                logger.error(f'Unknown model: {model}')
+                raise ValueError(f'Unknown model: {model}')
         else:
             model_space = params[model]
             model_space['model'] = model

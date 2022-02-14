@@ -32,7 +32,7 @@ def load_dataset(name: str, shuffle: bool=False, transform: Any=None, transform_
         return _load_cv_dataset(name, shuffle=shuffle, transform=transform, 
                                 transform_params=transform_params)
     else:
-        logger.error('Unknown dataset')
+        raise ValueError(f'Unknown dataset: {name}')
 
 def _load_ts_dataset(name: str, shuffle: bool=False, split: bool=False, transform: Dict=None):
     if name == 'iris':
@@ -44,7 +44,7 @@ def _load_ts_dataset(name: str, shuffle: bool=False, split: bool=False, transfor
     elif name == 'breast_cancer':
         dataset = load_breast_cancer()
     else:
-        logger.error('Unknown dataset')
+        raise ValueError(f'Unknown dataset: {name}')
         
     df = pd.DataFrame(dataset.data, columns=dataset.feature_names)
     df['target'] = pd.Series(dataset.target)
@@ -93,7 +93,7 @@ def _load_cv_dataset(name: str, shuffle: bool=False, transform: List=None, trans
         test_size = len(dataset) - train_size
         train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
     else:
-        logger.error('Unknown dataset')
+        raise ValueError(f'Unknown dataset: {name}')
     
     dataset = torch.utils.data.ConcatDataset([dataset_train, dataset_test])
     return dataset
@@ -208,7 +208,7 @@ class CSVDataset(Dataset):
         elif 'class' in self.df:
             y = self.df.loc[idx, 'class']
         else:
-            logger.error('Target not found')
+            raise ValueError(f'Target column not found')
         return X, y   
 
 class Data_rb_cla(Dataset):

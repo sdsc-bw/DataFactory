@@ -43,4 +43,4 @@ def _get_transform_cv(transform, params=None):
     elif transform == 'to_tensor':
         return transforms.PILToTensor(**params) if params else transforms.ToTensor()
     else:
-        logger.error(f'Unknown transformation: {transform}')
+        logger.error(f'Skipping transformation. Unknown transformation: {transform}')

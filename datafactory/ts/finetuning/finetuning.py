@@ -87,7 +87,7 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
     elif strategy == 'random':
         algo = rand.suggest
     else:
-        logger.error('Unknown strategy')
+        raise ValueError(f'Unknown strategy: {strategy}')
     
     with mlflow.start_run():
         best_result = fmin(
@@ -189,7 +189,7 @@ def _get_model(model, params=dict()):
     elif model == 'xcm':
         return XCM(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     else:
-        logger.error('Unknown model: ' + model)
+        logger.warn(f'Skipping model. Unknown model: {model}')
 
 def _get_search_spaces(models: list, params):
     global MODEL_TYPE
@@ -201,8 +201,10 @@ def _get_search_spaces(models: list, params):
                     model_space = std_search_space[model + '_c'].copy()
                 else:
                     model_space = std_search_space[model + '_r'].copy()
-            else:
+            elif model in std_search_space:
                 model_space = std_search_space[model].copy()
+            else:
+                raise ValueError(f'Unknown model: {model}')
         else:
             model_space = params[model]
             model_space['model'] = model

@@ -81,7 +81,7 @@ def apply_transforms(df: pd.DataFrame, transform: List):
             X_train, X_test, y_train, y_test = train_test_split(df.iloc[:, :-1], df.iloc[:, -1])
             tmp = apply_supervised_transforms_to_dataframe(X_train, X_test, y_train, y_test, transform=[trfm])
         else:
-            logger.error(f'Unknown transformation')
+            logger.warn(f'Skipping transformation. Unknown transformation: {t}')
         new_features.append(tmp)
     new_features = pd.concat(new_features, axis = 1)
     new_df = pd.concat([df, new_features], axis = 1)
