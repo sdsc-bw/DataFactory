@@ -13,11 +13,12 @@ import torch
 import torch.optim
 from torch.utils.data import DataLoader, Dataset 
 from torch.optim.lr_scheduler import ExponentialLR
+from torchvision import transforms
 import gc
 import time
 
 sys.path.append('../util')
-from ..util.metrics import score
+from ..util.metrics import val_score
 
 class Model(metaclass=ABCMeta):
     
@@ -152,7 +153,7 @@ class TsaiModel(Model):
                 _, targets, preds = self.learn.get_X_preds(self.shuffled_X[self.splits[1]], self.shuffled_y[self.splits[1]])
                 targets = targets.cpu().detach().numpy().tolist()
                 preds = [int(p) for p in preds]
-                scores[i] = score(targets, preds, scoring)
+                scores[i] = val_score(targets, preds, scoring)
         clear_output()
         return scores
     
@@ -272,6 +273,7 @@ class PytorchCVModel(Model):
         
         self.train_size = int(0.8 * len(dataset))
         self.test_size = len(dataset) - self.train_size
+        self._check_and_fix_in_size()
         train_dataset, test_dataset = torch.utils.data.random_split(dataset, [self.train_size, self.test_size])
         self.train_loader = DataLoader(train_dataset, batch_size=self.bs, shuffle=True)  
         self.test_loader = DataLoader(test_dataset, batch_size=self.bs, shuffle=False)
@@ -293,8 +295,9 @@ class PytorchCVModel(Model):
     def evaluate(self):
         self._test(self.test_loader)
 
-    def cross_val_score(self, cv=5, scoring='f1'):
+    def cross_val_score(self, cv: int=5, scoring: str='f1'):
         scores = np.zeros(cv)
+        test_losses = np.zeros(cv)
         for i in range(cv):
             train_dataset, test_dataset = torch.utils.data.random_split(self.dataset, [self.train_size, self.test_size], 
                                                                         generator=torch.Generator().manual_seed(i))
@@ -303,10 +306,10 @@ class PytorchCVModel(Model):
             self._init_model()
             self._init_training_params()
             self._train(train_loader)
-            scores[i] = self._test(test_loader, scoring=scoring)
+            test_losses[i], scores[i] = self._test(test_loader, scoring=scoring)
+
         #clear_output()
-        return scores
-    
+        return scores    
 
     def predict(self, X):
         outputs = self.model(images)
@@ -349,34 +352,8 @@ class PytorchCVModel(Model):
                 self.optimizer.step()
                 running_loss += loss.item()
             self.scheduler.step()    
-            
-    def _train_epoch(self, train_loader):
-        correct = 0
-        total = 0
-        running_loss = 0.0
-        self.model.train()
-        
-        for i, data in enumerate(train_loader, 0):
-            inputs, labels = data[0].to(self.device), data[1].to(self.device)
-                
-            self.optimizer.zero_grad()
-            outputs = self.model(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-            if self.params.get('loss_func', 'cross_entropy') == 'nll':
-                m = nn.LogSoftmax(dim=1)
-                loss = self.loss(m(outputs), labels)
-            else:
-                loss = self.loss(outputs, labels)
-            loss.backward()
-            self.optimizer.step()
-            running_loss += loss.item()
-        self.scheduler.step()
-        return running_loss, accuracy
-            
-                
-    def _test(self, test_loader, scoring='f1'):
+
+    def _test(self, test_loader: DataLoader, scoring: str='f1'):
         correct = 0
         total = 0
         running_loss = 0.0
@@ -406,8 +383,46 @@ class PytorchCVModel(Model):
         if scoring == 'accuracy':
             score = correct / total
         else:
-            score = score(targets, preds, scoring)
-        return running_loss, score
+            score = val_score(targets, preds, scoring)
+        return running_loss, score            
+            
+    def _train_epoch(self, train_loader):
+        correct = 0
+        total = 0
+        running_loss = 0.0
+        self.model.train()
+        
+        for i, data in enumerate(train_loader, 0):
+            inputs, labels = data[0].to(self.device), data[1].to(self.device)
+                
+            self.optimizer.zero_grad()
+            outputs = self.model(inputs)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            if self.params.get('loss_func', 'cross_entropy') == 'nll':
+                m = nn.LogSoftmax(dim=1)
+                loss = self.loss(m(outputs), labels)
+            else:
+                loss = self.loss(outputs, labels)
+            loss.backward()
+            self.optimizer.step()
+            running_loss += loss.item()
+        self.scheduler.step()
+        return running_loss, accuracy
+                            
+
+    
+    def _check_and_fix_in_size(self):
+        if self.in_size not in self.available_in_sizes:
+            self.in_size = min(self.available_in_sizes, key=lambda x: abs(x[0]- self.in_size[0]) + abs(x[1]- self.in_size[1]))
+        new_transforms = [transforms.Resize(self.in_size)]
+        self._update_transforms(new_transforms)
+    
+    def _update_transforms(self, new_transforms):
+        curr_transforms = self.dataset.transform.transforms
+        new_transforms = curr_transforms + new_transforms
+        self.dataset.transform = transforms.Compose(new_transforms)
     
     @staticmethod
     def get_loss(loss:str):

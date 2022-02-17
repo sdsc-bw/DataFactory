@@ -17,6 +17,9 @@ from ..util.constants import logger
 class EfficientNet(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
+        self.available_in_sizes = [(224, 224), (240, 240), (260, 260), (300, 300), (380, 380), 
+                                   (456, 456), (528, 528), (600, 600), (672, 672)]
+        
         super(EfficientNet, self).__init__(dataset, model_type, params)
         
         ############## process arch params #################
@@ -42,7 +45,6 @@ class EfficientNet(PytorchCVModel):
             logger.error(f'Unsupported input size: {self.in_size}')            
         ############## process arch params #################
         
-        
         self.name = "EfficientNet"
         self.id = "efficient_net"
         
@@ -50,3 +52,4 @@ class EfficientNet(PytorchCVModel):
         self.model = ptcv_get_model("efficientnet_" + self.version, pretrained=self.pretrained, 
                                     num_classes=self.num_classes, in_size=self.in_size, in_channels=self.in_channels)
         self.model.to(self.device)
+       

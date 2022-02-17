@@ -18,7 +18,7 @@ RECALL_SCORING = ['recall', 'recall_binary', 'recall_micro', 'recall_weighted', 
 ACCURACY_SCORING = ['accuracy']
 
 
-def score(y_true: List, y_pred: List, scoring: str):
+def val_score(y_true: List, y_pred: List, scoring: str):
     if scoring in ACCURACY_SCORING:
         return accuracy_score(y_true, y_pred)
     elif scoring in F1_SCORING:
