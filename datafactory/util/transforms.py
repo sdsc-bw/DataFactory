@@ -11,8 +11,15 @@ from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from .constants import logger
 
 def get_transforms_cv(transform: List, params: Dict=dict()):
+    transform = list(transform)
     if 'to_tensor' not in transform:
         transform.append('to_tensor')
+    if 'normalize' in transform:
+        idx_to_tensor = transform.index('to_tensor')
+        idx_normalize =  transform.index('normalize')
+        if idx_to_tensor > idx_normalize:
+            transform.remove('to_tensor')
+            transform.insert(idx_normalize, 'to_tensor')
     transform_compose = []
     if transform:
         for i in transform:
@@ -21,7 +28,8 @@ def get_transforms_cv(transform: List, params: Dict=dict()):
     return transforms.Compose(transform_compose)
         
         
-def _get_transform_cv(transform, params=None):
+def _get_transform_cv(transform: str, params: dict=None):
+    # see https://pytorch.org/vision/stable/transforms.html for transformation parameters
     if transform == 'center_crop':
         return transforms.CenterCrop(**params) if params else transforms.CenterCrop(10)
     elif transform == 'five_crop':

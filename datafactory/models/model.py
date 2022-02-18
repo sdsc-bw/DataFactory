@@ -16,9 +16,11 @@ from torch.optim.lr_scheduler import ExponentialLR
 from torchvision import transforms
 import gc
 import time
+import copy
 
 sys.path.append('../util')
 from ..util.metrics import val_score
+from ..util.transforms import get_transforms_cv
 
 class Model(metaclass=ABCMeta):
     
@@ -256,7 +258,7 @@ class PytorchCVModel(Model):
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
         super(PytorchCVModel, self).__init__(model_type)
         self.params = params
-        self.dataset = dataset        
+        self.dataset = copy.deepcopy(dataset) # WARNING, maybe problematic for large datasets
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         
         ############## process params #################
@@ -265,6 +267,9 @@ class PytorchCVModel(Model):
         self.epochs = params.get('epochs', 100)
         self.bs = params.get('batch_size', 16) 
         self.pretrained = params.get('pretrained', False)
+        print(self.params)
+        print(params.get('batch_tfms', []))
+        self.transforms = get_transforms_cv(params.get('batch_tfms', []), params=params.get('batch_tfms_params', dict()))
         self.num_classes = len(dataset.classes)
         dataset_shape = dataset[0][0].shape
         self.in_channels = dataset_shape[0]
@@ -273,6 +278,7 @@ class PytorchCVModel(Model):
         
         self.train_size = int(0.8 * len(dataset))
         self.test_size = len(dataset) - self.train_size
+        #self._update_transforms(self.transforms.transforms)
         self._check_and_fix_in_size()
         train_dataset, test_dataset = torch.utils.data.random_split(dataset, [self.train_size, self.test_size])
         self.train_loader = DataLoader(train_dataset, batch_size=self.bs, shuffle=True)  
@@ -409,9 +415,7 @@ class PytorchCVModel(Model):
             self.optimizer.step()
             running_loss += loss.item()
         self.scheduler.step()
-        return running_loss, accuracy
-                            
-
+        return running_loss, accuracy                            
     
     def _check_and_fix_in_size(self):
         if self.in_size not in self.available_in_sizes:
