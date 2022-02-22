@@ -14,7 +14,7 @@ from .model import PytorchCVModel
 class ResNeXt(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
-        self.available_in_sizes = [(224, 224), (256, 256), (320, 320)]
+        self.std_in_sizes = [(224, 224), (256, 256), (320, 320)]
         
         ############## process arch params #################
         self.num_blocks = params.get('n_blocks', 14)

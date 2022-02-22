@@ -10,6 +10,11 @@ from typing import cast, Any, Dict, List, Tuple, Optional, Union
 
 from .constants import logger
 
+def update_transforms(dataset, new_transforms):
+    curr_transforms = dataset.transform.transforms
+    new_transforms = curr_transforms + new_transforms
+    dataset.transform = transforms.Compose(new_transforms)
+
 def get_transforms_cv(transform: List, params: Dict=dict()):
     transform = list(transform)
     if 'to_tensor' not in transform:
@@ -39,7 +44,7 @@ def _get_transform_cv(transform: str, params: dict=None):
     elif transform == 'pad':
         return transforms.Pad(**params) if params else transforms.Pad(5)
     elif transform == 'resize':
-        return transforms.Resize(**params) if params else transforms.Resize(144)
+        return transforms.Resize(**params) if params else transforms.Resize(224)
     elif transform == 'random_rotation':
         return transforms.RandomRotation(**params) if params else transforms.RandomRotation(20)
     elif transform == 'color_jitter':

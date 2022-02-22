@@ -19,8 +19,9 @@ import time
 import copy
 
 sys.path.append('../util')
+from ..util.constants import logger
 from ..util.metrics import val_score
-from ..util.transforms import get_transforms_cv
+from ..util.transforms import get_transforms_cv, update_transforms
 
 class Model(metaclass=ABCMeta):
     
@@ -267,19 +268,18 @@ class PytorchCVModel(Model):
         self.epochs = params.get('epochs', 100)
         self.bs = params.get('batch_size', 16) 
         self.pretrained = params.get('pretrained', False)
-        print(self.params)
-        print(params.get('batch_tfms', []))
         self.transforms = get_transforms_cv(params.get('batch_tfms', []), params=params.get('batch_tfms_params', dict()))
         self.num_classes = len(dataset.classes)
         dataset_shape = dataset[0][0].shape
         self.in_channels = dataset_shape[0]
         self.in_size = dataset_shape[1], dataset_shape[2]
+        if params.get('batch_tfms', []) != []:
+            self.dataset.transform = self.transforms
+        self._check_and_fix_in_size()
         ############## process params #################
         
         self.train_size = int(0.8 * len(dataset))
         self.test_size = len(dataset) - self.train_size
-        #self._update_transforms(self.transforms.transforms)
-        self._check_and_fix_in_size()
         train_dataset, test_dataset = torch.utils.data.random_split(dataset, [self.train_size, self.test_size])
         self.train_loader = DataLoader(train_dataset, batch_size=self.bs, shuffle=True)  
         self.test_loader = DataLoader(test_dataset, batch_size=self.bs, shuffle=False)
@@ -417,16 +417,12 @@ class PytorchCVModel(Model):
         self.scheduler.step()
         return running_loss, accuracy                            
     
-    def _check_and_fix_in_size(self):
-        if self.in_size not in self.available_in_sizes:
-            self.in_size = min(self.available_in_sizes, key=lambda x: abs(x[0]- self.in_size[0]) + abs(x[1]- self.in_size[1]))
-        new_transforms = [transforms.Resize(self.in_size)]
-        self._update_transforms(new_transforms)
-    
-    def _update_transforms(self, new_transforms):
-        curr_transforms = self.dataset.transform.transforms
-        new_transforms = curr_transforms + new_transforms
-        self.dataset.transform = transforms.Compose(new_transforms)
+    def _check_and_fix_in_size(self):    
+        if 'resize' not in self.params.get('batch_tfms', []) and self.in_size not in self.std_in_sizes:
+            logger.info(f"No transformation given. Resize images to standard input size of: {self.name}")
+            self.in_size = min(self.std_in_sizes, key=lambda x: abs(x[0]- self.in_size[0]) + abs(x[1]- self.in_size[1]))
+            new_transforms = [transforms.Resize(self.in_size)]
+            update_transforms(self.dataset, new_transforms)
     
     @staticmethod
     def get_loss(loss:str):

@@ -99,8 +99,20 @@ def _load_cv_dataset(name: str, shuffle: bool=False, transform: List=None, trans
     return dataset
 
 def convert_dataset_to_numpy(dataset, shuffle=False):
-    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=shuffle)
-    X, y = next(iter(dataloader))
+    try:
+        dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=shuffle)
+        X, y = next(iter(dataloader))
+    except RuntimeError as err:
+        if str(err).startswith('stack expects each tensor to be equal size'):
+            inp = input('Not all images have equal size. Choose size <hxw>: ')
+            size = tuple(map(int, inp.split('x')))
+            new_transforms = [transforms.Resize(size)]
+            update_transforms(dataset, new_transforms)
+            dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=shuffle)
+            X, y = next(iter(dataloader))
+        else:
+            raise RuntimeError(str(err))
+            
     X = X.numpy() 
     y = y.numpy()
     return X, y    

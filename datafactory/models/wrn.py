@@ -13,7 +13,7 @@ from .model import PytorchCVModel
 class WRN(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
-        self.available_in_sizes = [(224, 224)]
+        self.std_in_sizes = [(224, 224)]
         
         super(WRN, self).__init__(dataset, model_type, params)
         

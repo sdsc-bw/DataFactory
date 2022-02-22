@@ -13,7 +13,7 @@ from .model import PytorchCVModel
 class RegNet(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
-        self.available_in_sizes = [(224, 224)]
+        self.std_in_sizes = [(224, 224)]
         
         ############## process arch params #################
         self.version = params.get('version', 'x') # SE = squeeze-and-excitation 

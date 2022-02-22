@@ -14,7 +14,7 @@ from .model import PytorchCVModel
 class AlexNet(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
-        self.available_in_sizes = [(224, 224)]
+        self.std_in_sizes = [(224, 224)]
         
         super(AlexNet, self).__init__(dataset, model_type, params)
         

@@ -17,7 +17,7 @@ from ..util.constants import logger
 class EfficientNet(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
-        self.available_in_sizes = [(224, 224), (240, 240), (260, 260), (300, 300), (380, 380), 
+        self.std_in_sizes = [(224, 224), (240, 240), (260, 260), (300, 300), (380, 380), 
                                    (456, 456), (528, 528), (600, 600), (672, 672)]
         
         super(EfficientNet, self).__init__(dataset, model_type, params)

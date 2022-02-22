@@ -36,8 +36,9 @@ def load_dataset_from_file(file_path: str, root_dir: str=None, shuffle: bool=Tru
         
     #TODO extend for different file formats    
     if file_path.endswith('.csv') and root_dir:
-        return CSVFolderDataset(file_path, root_dir=root_dir, transform=transform)
+        dataset = CSVFolderDataset(file_path, root_dir=root_dir, transform=transform)
     elif file_path.endswith('.csv'):
-        return CSVDataset(file_path, transform=transform)
+        dataset = CSVDataset(file_path, transform=transform)
     else:
-        return datasets.ImageFolder(file_path, transform=transform)
+        dataset = datasets.ImageFolder(file_path, transform=transform)            
+    return dataset

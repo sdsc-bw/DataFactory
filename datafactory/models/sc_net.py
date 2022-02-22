@@ -17,7 +17,8 @@ from ..util.constants import logger
 class SCNet(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
-        self.available_in_sizes = [(224, 224), (256, 256)]
+        self.std_in_sizes = [(224, 224), (256, 256)]
+        
         ############## process arch params #################
         self.num_layers = params.get('n_layers', 50)
         self.down_sampling = params.get('down_sampling', False)
