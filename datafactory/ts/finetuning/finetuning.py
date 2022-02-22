@@ -97,7 +97,7 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
         max_evals=max_evals,
         trials=trials)
         
-    best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
+    #best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
     
     # reset # TODO maybe use tempfiles
     TEMP_X = None
@@ -107,7 +107,7 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
     RESULTS = None
     SCORING = 'f1'
         
-    return best_model
+    #return best_model
 
 def _objective(params):
     global CV

@@ -99,7 +99,7 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
         max_evals=max_evals,
         trials=trials)
         
-    best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
+    #best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
         
     DATASET = None
     MODEL_TYPE = None
@@ -107,7 +107,7 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
     RESULTS = None    
     SCORING = 'f1'
         
-    return best_model
+    #return best_model
 
 def _objective(params):
     global CV
