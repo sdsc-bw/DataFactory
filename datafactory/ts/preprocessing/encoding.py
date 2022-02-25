@@ -11,7 +11,7 @@ import sys
 sys.path.append('../../util')
 from ...util.constants import logger, bcolors
 
-def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: bool=True):
+def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: bool=True, file = None):
     """Categorical feature encoding of given dataframes, generate k-term feature and extract date feature
     
     Notice - disadvantage: if NA exist, fill na with new label 'NULL'.
@@ -20,14 +20,15 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     X -- data
     y -- labels
     k_term -- whether k-terms should be added as columns
+    file -- file to save the function information
     Output:
     encoded data
     and encoded labels (optional)
     """
     logger.info('Start to transform the categorical columns...')
-    print('#'*30)
-    print('Encoding and categorical features extraction')
-    print('#'*30)
+    print('#'*30, file = file)
+    print('Encoding and categorical features extraction', file = file)
+    print('#'*30, file = file)
     # check date data 
     
     tmp_datetime = dt_transform(X)
@@ -36,7 +37,7 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
         logger.warning('Two date columns exist, please check the given dataset')
         
     if tmp_datetime.shape[1]>0:
-        print(f'{bcolors.HEADER}{bcolors.BOLD}{tmp_datetime.shape[1]}{bcolors.ENDC} Date feature(s) detected, try to extract feature from the date feature')
+        print(f'{bcolors.HEADER}{bcolors.BOLD}{tmp_datetime.shape[1]}{bcolors.ENDC} Date feature(s) detected, try to extract feature from the date feature', file = file)
         # drop date time column in the original dataframe
         X = X.drop(tmp_datetime.columns, axis = 1)
         
@@ -54,7 +55,7 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
         out_y = y
         if y.dtype == 'O':
             #logger.info('Start with label encoding of the target...')
-            print('Label encoding the given target')
+            print('Label encoding the given target', file = file)
             out_y = pd.Series(LabelEncoder().fit_transform(y), index = y.index)
             #logger.info('...End with Target encoding')
     
@@ -67,14 +68,14 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     
     # generate kterm of categ features
     if k_term:
-        print('K-term function is activated, try to extract the k-term for each object columns')
+        print('K-term function is activated, try to extract the k-term for each object columns', file = file)
         
         for i in dat_categ.columns:
             # get k-term feature
             tmp = X[i].value_counts()
             dat_kterm[i + '_kterm'] = X[i].map(lambda x: tmp[x] if x in tmp.index else 0)
         
-        print(f'{bcolors.HEADER}{bcolors.BOLD}{dat_kterm.shape[1]}{bcolors.ENDC} k-term features are extracted')
+        print(f'{bcolors.HEADER}{bcolors.BOLD}{dat_kterm.shape[1]}{bcolors.ENDC} k-term features are extracted', file = file)
             
     # onehot encoding and label encoding
     dat_categ_onehot = dat_categ.iloc[:, dat_categ.apply(lambda x: len(x.unique())).values < 8]
@@ -86,7 +87,7 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     
     # oe
     if dat_categ_onehot.shape[1] > 0:
-        print('Start to do the one-hot encoding for the following categoric features: '+ (str(dat_categ_onehot.columns.to_list())) + '...')
+        print('Start to do the one-hot encoding for the following categoric features: '+ (str(dat_categ_onehot.columns.to_list())) + '...', file = file)
         dat_categ_onehot = dat_categ_onehot.fillna('NULL')
         dat_onehot = pd.DataFrame(oe.fit_transform(dat_categ_onehot.astype(str)).toarray(), 
                                   columns=oe.get_feature_names(dat_categ_onehot.columns))
@@ -99,7 +100,7 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
         
     # le
     if dat_categ_label.shape[1] > 0:
-        print('Start to do the label encoding for the following categoric features: %s...' %(str(dat_categ_label.columns.to_list())))
+        print('Start to do the label encoding for the following categoric features: %s...' %(str(dat_categ_label.columns.to_list())), file = file)
         dat_categ_label = dat_categ_label.fillna('NULL')
         dat_label = pd.DataFrame(columns=dat_categ_label.columns)
         for i in dat_categ_label.columns:
@@ -129,7 +130,7 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     if tmp_datetime.shape[1] >0:
         dat_new = pd.concat([dat_datetime, dat_new], axis = 1)
         
-    print(f'Shape of the given dataframe after encoding is: {bcolors.HEADER}{bcolors.BOLD}{dat_new.shape}{bcolors.ENDC}')
+    print(f'Shape of the given dataframe after encoding is: {bcolors.HEADER}{bcolors.BOLD}{dat_new.shape}{bcolors.ENDC}', file = file)
     logger.info('...End with categorical feature transformation')
     
     if y is not None:
