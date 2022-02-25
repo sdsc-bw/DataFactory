@@ -1,5 +1,5 @@
 '''
-Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
+Copyright (c) Smart Data Solution Center Baden-WÃ¼rttemberg 2021,
 All rights reserved.
 '''
 
@@ -10,25 +10,34 @@ from sklearn.neighbors import LocalOutlierFactor
 import sys
 
 sys.path.append('../../util')
-from ...util.constants import logger
+from ...util.constants import logger, bcolors
 
-def outlier_detection_dataframe(df: pd.DataFrame, strategy: str='density') -> pd.Series:
+def outlier_detection_dataframe(df: pd.DataFrame) -> pd.Series:
     """Outlier detection of a given dataframe.
         
     Keyword arguments:
+    
     df -- dataframe
+
     Output:
-    outlier of given dataframe
+    out: output pd.Series that signify if each item is outlier or not
     """
-    logger.info(f'Start to detect outlier for the whole data set with strategy: {strategy}...')
-    if strategy == 'high_dimension':
+    
+    logger.info(f'Start to detect outlier for the whole data set...')
+    print('#'*30)
+    print('Outliear detection')
+    print('#'*30)
+    
+    if df.shape[1]>= 40:
+        print('Detect outlier with strategy: high demension')
         out = outlier_detection_high_dimension(df)
-    elif strategy == 'density':
-        out = outlier_detection_density(df)
     else:
-        logger.info('Unrecognized strategy. Use density-based strategy instead')
+        print('Detect outlier with strategy: density')
         out = outlier_detection_density(df)
-    logger.info(f'...End with outlier detection, {out.sum()} outliers found')
+
+    logger.info(f'...End with outlier detection, {bcolors.HEADER}{bcolors.BOLD}{out.sum()}{bcolors.ENDC} outliers found')
+    print(f'{bcolors.HEADER}{bcolors.BOLD}{out.sum()}{bcolors.ENDC} outliers found')
+
     return out
 
 def outlier_detection_feature(col: pd.Series) -> pd.Series:
