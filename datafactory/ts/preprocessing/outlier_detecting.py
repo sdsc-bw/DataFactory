@@ -12,31 +12,31 @@ import sys
 sys.path.append('../../util')
 from ...util.constants import logger, bcolors
 
-def outlier_detection_dataframe(df: pd.DataFrame) -> pd.Series:
+def outlier_detection_dataframe(df: pd.DataFrame, file = None) -> pd.Series:
     """Outlier detection of a given dataframe.
         
     Keyword arguments:
     
     df -- dataframe
-
+    file -- file to save the print information
     Output:
     out: output pd.Series that signify if each item is outlier or not
     """
     
     logger.info(f'Start to detect outlier for the whole data set...')
-    print('#'*30)
-    print('Outliear detection')
-    print('#'*30)
+    print('#'*30, file = file)
+    print('Outliear detection', file = file)
+    print('#'*30, file = file)
     
     if df.shape[1]>= 40:
-        print('Detect outlier with strategy: high demension')
+        print('Detect outlier with strategy: high demension', file = file)
         out = outlier_detection_high_dimension(df)
     else:
-        print('Detect outlier with strategy: density')
+        print('Detect outlier with strategy: density', file = file)
         out = outlier_detection_density(df)
 
     logger.info(f'...End with outlier detection, {bcolors.HEADER}{bcolors.BOLD}{out.sum()}{bcolors.ENDC} outliers found')
-    print(f'{bcolors.HEADER}{bcolors.BOLD}{out.sum()}{bcolors.ENDC} outliers found')
+    print(f'{bcolors.HEADER}{bcolors.BOLD}{out.sum()}{bcolors.ENDC} outliers found', file = file)
 
     return out
 
