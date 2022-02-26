@@ -47,41 +47,34 @@ std_inception_time = {'model': 'inception_time',
                       'nb_filters': hp.choice('nb_filters_it', [32, 64, 96, 128]), 
                       'nf': hp.choice('nf_it', [32, 64]), 
                       'epochs': 25,
-                      'lr_max': 1e-3, 
-                      'metrics': ['accuracy']}
+                      'lr_max': 1e-3}
 
 std_inception_time_plus = {'model': 'inception_time_plus',
                            'nb_filters': hp.choice('nb_filters_itp', [32, 64, 96, 128]), 
                            'fc_dropout': hp.choice('fc_dropout_ipt', [0.0, 0.3]), 
                            'epochs': 25,
-                           'lr_max': 1e-3,
-                           'metrics': ['accuracy']}
+                           'lr_max': 1e-3}
 std_lstm = {'model': 'lstm',
             'n_layers': hp.choice('n_layers_lstm', [1, 2, 3]), 
             'bidirectional': hp.choice('bidirectional_lstm', [True, False]), 
             'epochs': 25,
-            'lr_max': 1e-3,
-            'metrics': ['accuracy']}
+            'lr_max': 1e-3}
 std_gru = {'model': 'gru',
            'epochs': 25,
-           'lr_max': 1e-3,
-           'metrics': ['accuracy']}
+           'lr_max': 1e-3}
 std_mlp = {'model': 'mlp',
            'use_bn': hp.choice('use_bn_mlp', [True, False]), 
            'bn_final': hp.choice('bn_final_mlp', [True, False]), 
            'lin_first': hp.choice('lin_first_mlp', [True, False]), 
            'fc_dropout': hp.choice('fc_dropout_mlp', [0.0, 0.3]), 
            'epochs': 25,
-           'lr_max': 1e-3,
-           'metrics': ['accuracy']}
+           'lr_max': 1e-3}
 std_fcn = {'model': 'fcn',
            'epochs': 25,
-           'lr_max': 1e-3,
-           'metrics': ['accuracy']}
+           'lr_max': 1e-3}
 std_res_net = {'model': 'res_net',
                'epochs': 25,
-               'lr_max': 1e-3,
-               'metrics': ['accuracy']}
+               'lr_max': 1e-3}
 std_lstm_fcn = {'model': 'lstm_fcn',
                 'cell_dropout': hp.choice('cell_dropout_lstm_fcn', [0.0, 0.3, 0.5]),
                 'rnn_dropout': hp.choice('rnn_dropout_lstm_fcn', [0.6, 0.8, 0.9]),
@@ -89,8 +82,7 @@ std_lstm_fcn = {'model': 'lstm_fcn',
                 'bidirectional': hp.choice('bidirectional_lstm_fcn', [True, False]),
                 'shuffle': hp.choice('shuffle_lstm_fcn', [True, False]),
                 'epochs': 25,
-                'lr_max': 1e-3,
-                'metrics': ['accuracy']}
+                'lr_max': 1e-3}
 std_gru_fcn = {'model': 'gru_fcn',
                'cell_dropout': hp.choice('cell_dropout_gru_fcn', [0.0, 0.3, 0.5]),
                'rnn_dropout': hp.choice('rnn_dropout_gru_fcn', [0.6, 0.8, 0.9]),
@@ -98,34 +90,27 @@ std_gru_fcn = {'model': 'gru_fcn',
                'bidirectional': hp.choice('bidirectional_gru_fcn', [True, False]),
                'shuffle': hp.choice('shuffle_gru_fcn', [True, False]),
                'epochs': 25,
-               'lr_max': 1e-3,
-               'metrics': ['accuracy']}
+               'lr_max': 1e-3}
 std_mwdn = {'model': 'mwdn',
             'epochs': 25,
-            'lr_max': 1e-3,
-            'metrics': ['accuracy']}
+            'lr_max': 1e-3}
 std_tcn = {'model': 'tcn',
            'epochs': 25,
-           'lr_max': 1e-3,
-           'metrics': ['accuracy']}
+           'lr_max': 1e-3}
 std_xception_time = {'model': 'xception_time',
                      'epochs': 25,
-                     'lr_max': 1e-3,
-                     'metrics': ['accuracy']}
+                     'lr_max': 1e-3}
 std_res_cnn = {'model': 'res_cnn',
                'epochs': 25,
-               'lr_max': 1e-3,
-               'metrics': ['accuracy']}
+               'lr_max': 1e-3}
 std_tab_model = {'model': 'tab_model',
                  'epochs': 25,
-                 'lr_max': 1e-3,
-                 'metrics': ['accuracy']}
+                 'lr_max': 1e-3}
 std_omni_scale = {'model': 'omni_scale',
                   'paramenter_number_of_layer_list': hp.choice('paramenter_number_of_layer_list_omni_scale', [[8 * 128, 5 * 128 * 256 + 2 * 256 * 128]]), 
                   'few_shot': hp.choice('few_shot_omni_scale', [True, False]), 
                   'epochs': 25,
-                  'lr_max': 1e-3,
-                  'metrics': ['accuracy']}
+                  'lr_max': 1e-3}
 std_tst = {'model': 'tst',
           'n_layers': hp.choice('n_layers_tst', [2, 3, 4]), 
           'd_model': hp.choice('d_model_tst', [64, 128, 256]), 
@@ -135,8 +120,7 @@ std_tst = {'model': 'tst',
           'act': hp.choice('act_tst', ['relu', 'gelu']), 
           'fc_dropout': hp.choice('fc_dropout_tst', [0.3, 0.5]), 
           'epochs': 25,
-          'lr_max': 1e-3,
-          'metrics': ['accuracy']}
+          'lr_max': 1e-3}
 std_xcm = {'model': 'xcm',
            'nf': hp.choice('nf_xcm', [64, 128, 256]), 
            'window_perc': hp.choice('window_perc_xcm', [1.5, 1.0]), 
@@ -144,8 +128,7 @@ std_xcm = {'model': 'xcm',
            'flatten': hp.choice('flatten_xcm', [True, False]), 
            'bn': hp.choice('bn_xcm', [True, False]), 
            'epochs': 25,
-           'lr_max': 1e-3,
-           'metrics': ['accuracy']}
+           'lr_max': 1e-3}
 
 ######## Standard Searchspace
 std_search_space = {'decision_tree_c': std_decision_tree_c, 

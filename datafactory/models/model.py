@@ -99,7 +99,7 @@ class TsaiModel(Model):
         params = self.params.copy()
         self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
         self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
-        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy'])) 
+        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy', 'f1_micro', 'recall_micro', 'precision_micro']))
         self.transforms = get_transforms_fastai(params.get('batch_tfms', []))
         self.lr_max = params.get('lr_max', 1e-3)
         self.epochs = params.get('epochs', 25)
@@ -210,7 +210,7 @@ class PytorchCVModel(Model):
         self.transforms = get_transforms_cv(params.get('batch_tfms', []), params=params.get('batch_tfms_params', dict()))
         self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
         self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
-        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy'])) 
+        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy', 'f1_micro', 'recall_micro', 'precision_micro']))
         if type(dataset) == torchvision.datasets.folder.ImageFolder:
             self.num_classes = len(dataset.classes)
         else:
@@ -245,7 +245,7 @@ class PytorchCVModel(Model):
     def evaluate(self):
         self._test(self.test_loader)
 
-    def cross_val_score(self, cv: int=5, scoring: str='f1'):  
+    def cross_val_score(self, cv: int=5, scoring: str='f1_micro'):  
         scores = np.zeros(cv)
         for i in range(cv):
             train_dataset, test_dataset = torch.utils.data.random_split(self.dataset, [self.train_size, self.test_size], 
@@ -275,7 +275,7 @@ class PytorchCVModel(Model):
         outputs = self.learn.model(X)
         return outputs.cpu().detach().numpy()
 
-    def _test(self, test_loader: DataLoader, scoring: str='f1'):
+    def _test(self, test_loader: DataLoader, scoring: str='f1_micro'):
         correct = 0
         total = 0
         preds = []

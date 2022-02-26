@@ -21,11 +21,41 @@ ACCURACY_SCORING = ['accuracy']
 def get_metrics_fastai(metrics: list):
     metrics_list = []
     metrics_list.append(accuracy)
+    if 'f1' in metrics or 'f1_binary' in metrics:
+        metrics_list.append(F1Score())
+    if 'f1_micro' in metrics:
+        metrics_list.append(F1Score(average='micro'))
+    if 'f1_macro' in metrics:
+        metrics_list.append(F1Score(average='macro'))
+    if 'f1_samples' in metrics:
+        metrics_list.append(F1Score(average='samples'))
+    if 'f1_weighted' in metrics:
+        metrics_list.append(F1Score(average='weighted'))
+    if 'precision' in metrics or 'precision_binary' in metrics:
+        metrics_list.append(Precision())
+    if 'precision_micro' in metrics:
+        metrics_list.append(Precision(average='micro'))
+    if 'precision_macro' in metrics:
+        metrics_list.append(Precision(average='macro'))
+    if 'precision_samples' in metrics:
+        metrics_list.append(Precision(average='samples'))
+    if 'precision_weighted' in metrics:
+        metrics_list.append(Precision(average='weighted'))
+    if 'recall' in metrics or 'recall_binary' in metrics:
+        metrics_list.append(Recall())
+    if 'recall_micro' in metrics:
+        metrics_list.append(Recall(average='micro'))
+    if 'recall_macro' in metrics:
+        metrics_list.append(Recall(average='macro'))
+    if 'recall_samples' in metrics:
+        metrics_list.append(Recall(average='samples'))
+    if 'recall_weighted' in metrics:
+        metrics_list.append(Recall(average='weighted'))
     if 'mae' in metrics:
         metrics_list.append(mae)
     if 'mse' in metrics:
         metrics_list.append(mse)
-    if 'top_k_accuracy' in metrics:
+    if 'top_5_accuracy' in metrics:
         metrics_list.append(top_k_accuracy)   
     return metrics_list
 
