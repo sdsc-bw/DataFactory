@@ -12,7 +12,9 @@ import sys
 from hyperopt import fmin, tpe, rand, hp, STATUS_OK, Trials
 import mlflow
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
+import torch
 from torch.utils.data import Dataset, DataLoader
+import gc
 
 from .search_space import std_search_space
 
@@ -131,7 +133,12 @@ def _objective(params):
     RESULTS.sort_values(by='Score', ascending=False, ignore_index=True, inplace=True)
     display(RESULTS)
     
-    return {'loss': -score, 'status': STATUS_OK, 'model': model, 'elapsed': elapsed}
+    # clear cache
+    del model
+    torch.cuda.empty_cache()
+    gc.collect()
+    
+    return {'loss': -score, 'status': STATUS_OK, 'elapsed': elapsed}
 
 def _get_model(model, params=dict()):
     global DATASET    

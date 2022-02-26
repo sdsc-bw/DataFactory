@@ -29,4 +29,3 @@ class VGG(PytorchCVModel):
         bn = 'bn_' if self.batch_norm else ''
         self.model = ptcv_get_model(bn + "vgg" + str(self.num_layers), pretrained=self.pretrained, 
                                     num_classes=self.num_classes, in_size=self.in_size, in_channels=self.in_channels)
-        self.model.to(self.device)

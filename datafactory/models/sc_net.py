@@ -34,4 +34,3 @@ class SCNet(PytorchCVModel):
             
         self.model = ptcv_get_model("scnet" + a + str(self.num_layers), pretrained=self.pretrained, 
                                     num_classes=self.num_classes, in_size=self.in_size, in_channels=self.in_channels)
-        self.model.to(self.device)

@@ -23,4 +23,3 @@ class PNASNet(PytorchCVModel):
     def _init_model(self):
         self.model = ptcv_get_model("pnasnet5large", pretrained=self.pretrained, 
                                     num_classes=self.num_classes, in_size=self.in_size, in_channels=self.in_channels)
-        self.model.to(self.device)

@@ -14,7 +14,7 @@ from .model import PytorchCVModel
 class ResNeXt(PytorchCVModel):
     
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
-        self.std_in_sizes = [(224, 224), (256, 256), (320, 320)]
+        self.std_in_sizes = [(224, 224)]
         
         ############## process arch params #################
         self.num_blocks = params.get('n_blocks', 14)
@@ -45,4 +45,3 @@ class ResNeXt(PytorchCVModel):
     def _init_model(self):
         self.model = ptcv_get_model(f"resnext{str(self.num_blocks)}_{self.cardinality}x{self.bottleneck_width}d", pretrained=self.pretrained, 
                                     num_classes=self.num_classes, in_size=self.in_size, in_channels=self.in_channels)
-        self.model.to(self.device)

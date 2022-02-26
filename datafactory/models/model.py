@@ -13,15 +13,19 @@ import torch
 import torch.optim
 from torch.utils.data import DataLoader, Dataset 
 from torch.optim.lr_scheduler import ExponentialLR
+import torchvision
 from torchvision import transforms
+from fastai.vision.all import *
 import gc
 import time
 import copy
 
 sys.path.append('../util')
 from ..util.constants import logger
-from ..util.metrics import val_score
-from ..util.transforms import get_transforms_cv, update_transforms
+from ..util.metrics import val_score, get_metrics_fastai
+from ..util.optimizer import get_optimizer_fastai
+from ..util.loss import get_loss_fastai
+from ..util.transforms import get_transforms_cv, update_transforms, get_transforms_fastai
 
 class Model(metaclass=ABCMeta):
     
@@ -90,14 +94,13 @@ class TsaiModel(Model):
         self.y = y.to_numpy()
         self.params = params
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-        
+      
         ############## process params #################
         params = self.params.copy()
-        self.loss = self.get_loss(params.get('loss_func', 'cross_entropy'))
-        self.optimizer = self.get_optimizer(params.get('opt_func', 'adam'))
-        self.metrics = self.get_metrics(params.get('metrics', ['accuracy'])) 
-        self.transforms = self.get_transforms(params.get('batch_tfms', []))
+        self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
+        self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
+        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy'])) 
+        self.transforms = get_transforms_fastai(params.get('batch_tfms', []))
         self.lr_max = params.get('lr_max', 1e-3)
         self.epochs = params.get('epochs', 25)
         self.splits = TSSplitter(valid_size=0.2, show_plot=False)
@@ -142,17 +145,13 @@ class TsaiModel(Model):
         self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
                 
     def cross_val_score(self, cv=5, scoring='f1'):
-        if scoring == 'accuracy':
-            scores = np.zeros(cv)
-            for i in range(cv):
-                self._init_learner()
-                self.fit()
+        scores = np.zeros(cv)
+        for i in range(cv):
+            self._init_learner()
+            self.fit()
+            if scoring == 'accuracy':
                 scores[i] = self.learn.recorder.values[-1][2]
-        else:
-            scores = np.zeros(cv)
-            for i in range(cv):
-                self._init_learner()
-                self.fit()
+            else:
                 _, targets, preds = self.learn.get_X_preds(self.shuffled_X[self.splits[1]], self.shuffled_y[self.splits[1]])
                 targets = targets.cpu().detach().numpy().tolist()
                 preds = [int(p) for p in preds]
@@ -163,13 +162,13 @@ class TsaiModel(Model):
     def predict(self, X: pd.Series):
         if X.ndim == 2:
             X = self.X.reshape(X.shape[0], X.shape[1], 1)
-        _, _, preds = learn.get_X_preds(X)
+        _, _, preds = self.learn.get_X_preds(X)
         return preds
     
     def predict_probas(self, X: pd.Series):
         if X.ndim == 2:
             X = self.X.reshape(X.shape[0], X.shape[1], 1)
-        probas, _, _ = learn.get_X_preds(X)
+        probas, _, _ = self.learn.get_X_preds(X)
         return probas
     
     def plot_metrics(self):
@@ -190,69 +189,7 @@ class TsaiModel(Model):
         if 'metrics' in params:
             del params['metrics']
         return params
-    
-    @staticmethod
-    def get_loss(loss:str):
-        if loss == 'cross_entropy':
-            return CrossEntropyLossFlat() # Classification
-        elif loss == 'smooth_cross_entropy':
-            return LabelSmoothingCrossEntropyFlat() # Classification
-        elif loss == 'l1':
-            return L1LossFlat() # Regression/Forecasting
-        elif loss == 'focal':
-            return FocalLoss() # Classification
-        elif loss == 'dice':
-            return DiceLoss() # Classification
-        elif loss == 'bce':
-            return BCEWithLogitsLossFlat() # Regression/Forecasting
-        else:
-            logger.warn(f'Unknown loss: {loss}. Using default loss instead')
-            return None
-                             
-    @staticmethod                        
-    def get_optimizer(optimizer:str):
-        if optimizer == 'adam':
-            return Adam
-        if optimizer == 'r_adam':
-            return RAdam
-        if optimizer == 'qh_adam':
-            return QHAdam
-        if optimizer == 'sgd':
-            return SGD
-        if optimizer == 'rms_prop':
-            return RMSProp    
-        if optimizer == 'larc':
-            return Larc
-        if optimizer == 'lamb':
-            return Lamb
-        else:
-            logger.warn(f'Unknown optimizer: {optimizer}. Using Adam instead')
-            return Adam
-     
-    @staticmethod
-    def get_metrics(metrics: list):
-        metrics_list = []
-        metrics_list.append(accuracy)
-        if 'mae' in metrics:
-            metrics_list.append(mae)
-        if 'mse' in metrics:
-            metrics_list.append(mse)
-        if 'top_k_accuracy' in metrics:
-            metrics_list.append(top_k_accuracy)   
-        return metrics_list
 
-    @staticmethod
-    def get_transforms(transforms: list):
-        transforms_list = []
-        if 'standardize' in transforms:
-            transforms_list.append(TSStandardize())
-        if 'clip' in transforms:
-            transforms_list.append(TSClip())    
-        if 'mag_scale' in transforms:
-            transforms_list.append(TSMagScale())
-        if 'window_wrap' in transforms:
-            transforms_list.append(TSWindowWarp())    
-        return transforms_list
 
 class PytorchCVModel(Model): 
         
@@ -261,15 +198,23 @@ class PytorchCVModel(Model):
         self.params = params
         self.dataset = copy.deepcopy(dataset) # WARNING, maybe problematic for large datasets
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        #self.device = torch.device('cpu')
         
         ############## process params #################
         params = self.params.copy()
         self.lr_max = params.get('lr_max', 1e-3)
+        self.lr_max = 1e-5 # TODO delete
         self.epochs = params.get('epochs', 100)
         self.bs = params.get('batch_size', 16) 
         self.pretrained = params.get('pretrained', False)
         self.transforms = get_transforms_cv(params.get('batch_tfms', []), params=params.get('batch_tfms_params', dict()))
-        self.num_classes = len(dataset.classes)
+        self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
+        self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
+        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy'])) 
+        if type(dataset) == torchvision.datasets.folder.ImageFolder:
+            self.num_classes = len(dataset.classes)
+        else:
+            self.num_classes = input('Found no imformation about number of classes. Please enter number of classes: ')
         dataset_shape = dataset[0][0].shape
         self.in_channels = dataset_shape[0]
         self.in_size = dataset_shape[1], dataset_shape[2]
@@ -288,99 +233,62 @@ class PytorchCVModel(Model):
     def _init_model(self):
         pass
 
-    def _init_training_params(self):
-        self.loss = self.get_loss(self.params.get('loss_func', 'cross_entropy'))
-        self.optimizer = self.get_optimizer(self.params.get('opt_func', 'adam'))  
-        self.scheduler = ExponentialLR(self.optimizer, gamma=0.9)
-        torch.cuda.empty_cache()
-        gc.collect()
-        
+    def _init_learner(self, dataloader):
+        self._init_model()
+        self.learn = Learner(dataloader, self.model, metrics=self.metrics, loss_func=self.loss, opt_func=self.optimizer)
+        self.learn.model.to(self.device)
+
     def fit(self):
-        self._train(self.train_loader)
-                
+        self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
+        
+# TODO rework to be consistent with tsai                 
     def evaluate(self):
         self._test(self.test_loader)
 
-    def cross_val_score(self, cv: int=5, scoring: str='f1'):
+    def cross_val_score(self, cv: int=5, scoring: str='f1'):  
         scores = np.zeros(cv)
-        test_losses = np.zeros(cv)
         for i in range(cv):
             train_dataset, test_dataset = torch.utils.data.random_split(self.dataset, [self.train_size, self.test_size], 
                                                                         generator=torch.Generator().manual_seed(i))
-            train_loader = DataLoader(train_dataset, batch_size=self.bs, shuffle=True)  
-            test_loader = DataLoader(test_dataset, batch_size=self.bs, shuffle=False)
-            self._init_model()
-            self._init_training_params()
-            self._train(train_loader)
-            test_losses[i], scores[i] = self._test(test_loader, scoring=scoring)
-
-        #clear_output()
-        return scores    
+            dataloader = DataLoaders.from_dsets(train_dataset, test_dataset, num_workers=0, device=self.device)
+            self._init_learner(dataloader)
+            self.fit()
+            if scoring == 'accuracy':
+                scores[i] = self.learn.recorder.values[-1][2]
+            else:
+                scores[i] = self._test(dataloader.valid, scoring=scoring)
+        clear_output()
+        return scores
 
     def predict(self, X):
-        outputs = self.model(images)
+        if not torch.is_tensor(X):
+            transform = transforms.ToTensor()
+            X = transform(X)
+        outputs = self.learn.model(X)
         _, predicted = torch.max(outputs.data, 1)
         return predicted.cpu().detach().numpy()
     
     def predict_probas(self, X):
-        outputs = self.model(images)
+        if not torch.is_tensor(X):
+            transform = transforms.ToTensor()
+            X = transform(X)
+        outputs = self.learn.model(X)
         return outputs.cpu().detach().numpy()
-    
-    def _train_and_test(self, train_loader, test_loader):       
-        self._init_model()
-        self._init_training_params()
-        results = pd.DataFrame(columns=['epoch', 'train_loss', 'valid_loss', 'time'])
-        for epoch in range(self.epochs):
-            start = time.time()
-            train_loss, train_acc = self._train_epoch(train_loader)
-            test_loss, test_acc = self._test(test_loader)
-            elapsed = time.time() - start
-            results.loc[i] = [epoch, train_loss, test_loss, int(elapsed)]
-            #clear_output()
-            display(results)
-    
-    def _train(self, train_loader):
-        self._init_model()
-        self._init_training_params()
-        for epoch in range(self.epochs):
-            running_loss = 0.0
-            for i, data in enumerate(train_loader, 0):
-                inputs, labels = data[0].to(self.device), data[1].to(self.device)
-                
-                self.optimizer.zero_grad()
-                outputs = self.model(inputs)
-                if self.params.get('loss_func', 'cross_entropy') == 'nll':
-                    m = nn.LogSoftmax(dim=1)
-                    loss = self.loss(m(outputs), labels)
-                else:
-                    loss = self.loss(outputs, labels)
-                loss.backward()
-                self.optimizer.step()
-                running_loss += loss.item()
-            self.scheduler.step()    
 
     def _test(self, test_loader: DataLoader, scoring: str='f1'):
         correct = 0
         total = 0
-        running_loss = 0.0
         preds = []
         targets = []
         self.model.eval()
         
         with torch.no_grad():
             for data in test_loader:
-                images, labels = data[0].to(device), data[1].to(device)
+                images, labels = data[0].to(self.device), data[1].to(self.device)
                 outputs = self.model(images)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
-                
-                if self.params.get('loss_func', 'cross_entropy') == 'nll':
-                    m = nn.LogSoftmax(dim=1)
-                    loss = self.loss(m(outputs), labels)
-                else:
-                    loss = self.loss(outputs, labels)
-                running_loss += loss.item()
                 
                 for p in predicted:
                     preds.append(p.cpu().detach().numpy().tolist())
@@ -389,33 +297,8 @@ class PytorchCVModel(Model):
         if scoring == 'accuracy':
             score = correct / total
         else:
-            score = val_score(targets, preds, scoring)
-        return running_loss, score            
-            
-    def _train_epoch(self, train_loader):
-        correct = 0
-        total = 0
-        running_loss = 0.0
-        self.model.train()
-        
-        for i, data in enumerate(train_loader, 0):
-            inputs, labels = data[0].to(self.device), data[1].to(self.device)
-                
-            self.optimizer.zero_grad()
-            outputs = self.model(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-            if self.params.get('loss_func', 'cross_entropy') == 'nll':
-                m = nn.LogSoftmax(dim=1)
-                loss = self.loss(m(outputs), labels)
-            else:
-                loss = self.loss(outputs, labels)
-            loss.backward()
-            self.optimizer.step()
-            running_loss += loss.item()
-        self.scheduler.step()
-        return running_loss, accuracy                            
+            score = val_score(targets, preds, scoring)  
+        return score                       
     
     def _check_and_fix_in_size(self):    
         if 'resize' not in self.params.get('batch_tfms', []) and self.in_size not in self.std_in_sizes:
@@ -423,34 +306,10 @@ class PytorchCVModel(Model):
             self.in_size = min(self.std_in_sizes, key=lambda x: abs(x[0]- self.in_size[0]) + abs(x[1]- self.in_size[1]))
             new_transforms = [transforms.Resize(self.in_size)]
             update_transforms(self.dataset, new_transforms)
-    
-    @staticmethod
-    def get_loss(loss:str):
-        if loss == 'cross_entropy':
-            return torch.nn.CrossEntropyLoss() # Classification
-        elif loss == 'nll':
-            return torch.nn.NLLLoss()
-        elif loss == 'hinge':
-            return torch.nn.HingeEmbeddingLoss()
-        elif loss == 'kl_div':
-            return torch.nn.KLDivLoss()
-        else:
-            raise ValueError(f'Unknown loss: {loss}')
-                                                   
-    def get_optimizer(self, optimizer:str):
-        if optimizer == 'adam':
-            return torch.optim.Adam(self.model.parameters(), lr=self.lr_max)
-        if optimizer == 'r_adam':
-            return torch.optim.RAdam(self.model.parameters(), lr=self.lr_max)
-        if optimizer == 'adadelta':
-            return torch.optim.Adadelta(self.model.parameters(), lr=self.lr_max)
-        if optimizer == 'adagrad':
-            return torch.optim.Adagrad(self.model.parameters(), lr=self.lr_max)
-        if optimizer == 'sgd':
-            return optim.SGD(model.parameters(), lr=self.lr_max)
-        if optimizer == 'rms_prop':
-            return optim.RMSprop(model.parameters(), lr=self.lr_max)    
-        else:
-            logger.warn(f'Unknown optimizer: {optimizer}. Using Adam instead')
-            return torch.optim.Adam(self.model.parameters(), lr=self.lr_max)
+        
+    def get_params(self):
+        params = self.params.copy()
+        if 'metrics' in params:
+            del params['metrics']
+        return params
     

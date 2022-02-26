@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
+from tsai.all import *
 
 from .constants import logger
 
@@ -17,6 +18,16 @@ PRECISION_SCORING = ['precision', 'precision_binary', 'precision_micro', 'precis
 RECALL_SCORING = ['recall', 'recall_binary', 'recall_micro', 'recall_weighted', 'recall_macro', 'recall_samples']
 ACCURACY_SCORING = ['accuracy']
 
+def get_metrics_fastai(metrics: list):
+    metrics_list = []
+    metrics_list.append(accuracy)
+    if 'mae' in metrics:
+        metrics_list.append(mae)
+    if 'mse' in metrics:
+        metrics_list.append(mse)
+    if 'top_k_accuracy' in metrics:
+        metrics_list.append(top_k_accuracy)   
+    return metrics_list
 
 def val_score(y_true: List, y_pred: List, scoring: str):
     if scoring in ACCURACY_SCORING:

@@ -7,6 +7,7 @@ import pandas as pd
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
+from tsai.all import * 
 
 from .constants import logger
 
@@ -15,6 +16,18 @@ def update_transforms(dataset, new_transforms):
     new_transforms = curr_transforms + new_transforms
     dataset.transform = transforms.Compose(new_transforms)
 
+def get_transforms_fastai(transforms: list):
+    transforms_list = []
+    if 'standardize' in transforms:
+        transforms_list.append(TSStandardize())
+    if 'clip' in transforms:
+        transforms_list.append(TSClip())    
+    if 'mag_scale' in transforms:
+        transforms_list.append(TSMagScale())
+    if 'window_wrap' in transforms:
+        transforms_list.append(TSWindowWarp())    
+    return transforms_list
+    
 def get_transforms_cv(transform: List, params: Dict=dict()):
     transform = list(transform)
     if 'to_tensor' not in transform:
@@ -52,7 +65,7 @@ def _get_transform_cv(transform: str, params: dict=None):
     elif transform == 'grayscale':
         return transforms.Grayscale(**params) if params else transforms.Grayscale()
     elif transform == 'normalize':
-        transforms.Normalize(**params) if params else transforms.Normalize(mean=[0.5,0.5,0.5], std=[0.5,0.5,0.5])
+        return transforms.Normalize(**params) if params else transforms.Normalize(mean=[0.5,0.5,0.5], std=[0.5,0.5,0.5])
     elif transform == 'to_tensor':
         return transforms.PILToTensor(**params) if params else transforms.ToTensor()
     else:

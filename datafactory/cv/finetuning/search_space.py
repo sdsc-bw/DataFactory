@@ -39,47 +39,47 @@ std_bayesian =  {'model': 'bayesian',
 
 ######### pytorchcv
 std_res_net = {'model': 'res_net',
-               'epochs': 100,
+               'epochs': 10,
                'lr_max': 1e-3,
                'n_layers': hp.choice('n_layers_res_net', [10, 14, 16]), 
                'down_sampling': hp.choice('down_sampling_res_net', [True, False])}
 std_se_res_net = {'model': 'se_res_net',
-                  'epochs': 100,
+                  'epochs': 10,
                   'lr_max': 1e-3,
                   'n_layers': hp.choice('n_layers_se_res_net', [10, 14, 16])}
 std_res_next = {'model': 'res_next',
-                'epochs': 100,
+                'epochs': 10,
                 'lr_max': 1e-3,
                 'n_blocks': hp.choice('n_blocks_res_next', [14, 26]), 
                 'cardinality': hp.choice('cardinality_res_next', [16, 32]), 
                 'bottleneck_width': hp.choice('bottleneck_width_res_next', [2, 4])}
 std_alex_net = {'model': 'alex_net',
-               'epochs': 100,
+               'epochs': 10,
                'lr_max': 1e-3,
                'version': hp.choice('version_alex_net', ['a', 'b'])}
 std_vgg = {'model': 'vgg',
-           'epochs': 100,
+           'epochs': 10,
            'lr_max': 1e-3,
            'n_layers': hp.choice('n_layers_vgg', [11, 13, 16]), 
            'batch_norm': hp.choice('bn_vgg', [True, False])}
 std_efficient_net = {'model': 'efficient_net',
-                     'epochs': 100,
+                     'epochs': 10,
                      'lr_max': 1e-3}
 std_wrn = {'model': 'wrn',
-           'epochs': 100,
+           'epochs': 10,
            'lr_max': 1e-3}
 std_reg_net = {'model': 'reg_net',
-               'epochs': 100,
+               'epochs': 10,
                'lr_max': 1e-3,
                'version': hp.choice('version_reg_net', ['x', 'y']), 
                'n_mf': hp.choice('n_mf', [200, 400])}
 std_sc_net = {'model': 'sc_net',
-              'epochs': 100,
+              'epochs': 10,
               'lr_max': 1e-3,
               'n_layers': hp.choice('n_layers_sc_net', [50, 101]), 
               'down_sampling': hp.choice('down_sampling_sc_net', [True, False])} 
 std_pnas_net = {'model': 'pnas_net',
-                'epochs': 100,
+                'epochs': 10,
                 'lr_max': 1e-3} 
 
 ######## Standard Searchspace
