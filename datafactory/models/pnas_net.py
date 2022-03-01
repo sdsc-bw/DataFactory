@@ -12,7 +12,7 @@ from .model import PytorchCVModel
 
 class PNASNet(PytorchCVModel):
     
-    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):      
+    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict(), metric_average: str='micro'):      
         self.available_in_sizes = [(224, 224), (331, 331)]
         
         super(PNASNet, self).__init__(dataset, model_type, params)

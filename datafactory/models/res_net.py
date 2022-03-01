@@ -20,7 +20,7 @@ from ..util.constants import logger
 ## TODO rename to ResNetTS
 class ResNet(TsaiModel):
     
-    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict(), metric_average: str='micro'):
         self.arch = ResNetTsai
         super(ResNet, self).__init__(X, y, model_type, params)
         
@@ -29,7 +29,7 @@ class ResNet(TsaiModel):
         
 class ResNetCV(PytorchCVModel):
     
-    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
+    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict(), metric_average: str='micro'):
         self.std_in_sizes = [(224, 224)]
         
         ############## process arch params #################

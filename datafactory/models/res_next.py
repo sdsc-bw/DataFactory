@@ -13,7 +13,7 @@ from .model import PytorchCVModel
 
 class ResNeXt(PytorchCVModel):
     
-    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
+    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict(), metric_average: str='micro'):
         self.std_in_sizes = [(224, 224)]
         
         ############## process arch params #################

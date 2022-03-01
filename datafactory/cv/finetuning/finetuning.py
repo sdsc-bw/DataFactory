@@ -20,6 +20,7 @@ from .search_space import std_search_space
 
 sys.path.append('../../models')
 from ...models import SKLEARN_MODELS
+from ...models.model import SklearnModel
 from ...models.decision_tree import DecisionTree
 from ...models.random_forest import RandomForest
 from ...models.ada_boost import AdaBoost
@@ -49,9 +50,11 @@ TEMP_Y = None
 MODEL_TYPE = None
 CV = 5
 RESULTS = None
-SCORING = 'f1'
+RANKING = 'f1'
+AVERAGE = 'micro'
+SCORING = RANKING + '_' + AVERAGE
 
-def finetune(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C', scoring='f1_micro'):
+def finetune(dataset, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C', ranking='f1', average='micro'):
     """Finetunes one or multiple models according with hyperopt.
         
     Keyword arguments:
@@ -72,6 +75,8 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
     global MODEL_TYPE
     global CV 
     global RESULTS
+    global RANKING
+    global AVERAGE
     global SCORING
     DATASET = dataset
     if not set(models).isdisjoint(SKLEARN_MODELS):
@@ -79,8 +84,11 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
         TEMP_X = TEMP_X.reshape(len(dataset),-1)
     MODEL_TYPE = model_type
     CV = cv
-    RESULTS = pd.DataFrame(columns=['Model', 'Score', 'Hyperparams', 'Time'])
-    SCORING = scoring
+    RESULTS = pd.DataFrame(columns=['model', ranking, 'hyperparams', 'time'])
+    
+    RANKING = ranking
+    if SCORING != 'accuracy':
+        SCORING = RANKING + '_' + AVERAGE
     
     trials = Trials()
               
@@ -107,13 +115,20 @@ def finetune(dataset, strategy: str='random', models: list=['decision_tree'], pa
     MODEL_TYPE = None
     CV = 5
     RESULTS = None    
-    SCORING = 'f1'
+    RANKING = 'f1'
+    AVERAGE = 'micro'
+    SCORING = RANKING + '_' + AVERAGE
+    
+    #if not isinstance(best_model, SklearnModel):
+    #    logger.info('Training details:')
+    #    best_model.plot_metrics()
         
     #return best_model
 
 def _objective(params):
     global CV
     global RESULTS
+    global RANKING
     global SCORING
     start = time.time()
     model = params['model']
@@ -130,7 +145,7 @@ def _objective(params):
     
     clear_output()
     RESULTS.loc[len(RESULTS)] = [model.get_name(), score, model.get_params(), elapsed]
-    RESULTS.sort_values(by='Score', ascending=False, ignore_index=True, inplace=True)
+    RESULTS.sort_values(by=RANKING, ascending=False, ignore_index=True, inplace=True)
     display(RESULTS)
     
     # clear cache
@@ -145,6 +160,7 @@ def _get_model(model, params=dict()):
     global TEMP_X
     global TEMP_Y
     global MODEL_TYPE
+    global AVERAGE
     if model == 'decision_tree':
         return DecisionTree(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'random_forest':  
@@ -162,25 +178,25 @@ def _get_model(model, params=dict()):
     elif model == 'bayesian_ridge':
         return BayesianRidge(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'res_net':
-        return ResNetCV(DATASET, MODEL_TYPE, params=params)
+        return ResNetCV(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'se_res_net':
-        return SEResNet(DATASET, MODEL_TYPE, params=params)
+        return SEResNet(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'res_next':
-        return ResNeXt(DATASET, MODEL_TYPE, params=params)
+        return ResNeXt(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'alex_net':
-        return AlexNet(DATASET, MODEL_TYPE, params=params)
+        return AlexNet(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'vgg':
-        return VGG(DATASET, MODEL_TYPE, params=params)
+        return VGG(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'efficient_net':
-        return EfficientNet(DATASET, MODEL_TYPE, params=params)
+        return EfficientNet(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'wrn':
-        return WRN(DATASET, MODEL_TYPE, params=params)
+        return WRN(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'reg_net':
-        return RegNet(DATASET, MODEL_TYPE, params=params)
+        return RegNet(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'sc_net':
-        return SCNet(DATASET, MODEL_TYPE, params=params)
+        return SCNet(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'pnas_net':
-        return PNASNet(DATASET, MODEL_TYPE, params=params)
+        return PNASNet(DATASET, MODEL_TYPE, params=params, metric_average=AVERAGE)
     else:
         logger.warn(f'Skipping model. Unknown model: {model}')
 

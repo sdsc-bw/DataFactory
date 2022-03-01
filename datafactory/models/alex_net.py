@@ -13,7 +13,7 @@ from .model import PytorchCVModel
 
 class AlexNet(PytorchCVModel):
     
-    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
+    def __init__(self, dataset: Dataset, model_type: str, params: Dict=dict(), metric_average: str='micro'):
         self.std_in_sizes = [(224, 224)]
         
         super(AlexNet, self).__init__(dataset, model_type, params)

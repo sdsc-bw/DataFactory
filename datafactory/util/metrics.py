@@ -18,64 +18,50 @@ PRECISION_SCORING = ['precision', 'precision_binary', 'precision_micro', 'precis
 RECALL_SCORING = ['recall', 'recall_binary', 'recall_micro', 'recall_weighted', 'recall_macro', 'recall_samples']
 ACCURACY_SCORING = ['accuracy']
 
-def get_metrics_fastai(metrics: list):
-    metrics_list = []
-    metrics_list.append(accuracy)
-    if 'f1' in metrics or 'f1_binary' in metrics:
-        metrics_list.append(F1Score())
-    if 'f1_micro' in metrics:
-        metrics_list.append(F1Score(average='micro'))
-    if 'f1_macro' in metrics:
-        metrics_list.append(F1Score(average='macro'))
-    if 'f1_samples' in metrics:
-        metrics_list.append(F1Score(average='samples'))
-    if 'f1_weighted' in metrics:
-        metrics_list.append(F1Score(average='weighted'))
-    if 'precision' in metrics or 'precision_binary' in metrics:
-        metrics_list.append(Precision())
-    if 'precision_micro' in metrics:
-        metrics_list.append(Precision(average='micro'))
-    if 'precision_macro' in metrics:
-        metrics_list.append(Precision(average='macro'))
-    if 'precision_samples' in metrics:
-        metrics_list.append(Precision(average='samples'))
-    if 'precision_weighted' in metrics:
-        metrics_list.append(Precision(average='weighted'))
-    if 'recall' in metrics or 'recall_binary' in metrics:
-        metrics_list.append(Recall())
-    if 'recall_micro' in metrics:
-        metrics_list.append(Recall(average='micro'))
-    if 'recall_macro' in metrics:
-        metrics_list.append(Recall(average='macro'))
-    if 'recall_samples' in metrics:
-        metrics_list.append(Recall(average='samples'))
-    if 'recall_weighted' in metrics:
-        metrics_list.append(Recall(average='weighted'))
-    if 'mae' in metrics:
-        metrics_list.append(mae)
-    if 'mse' in metrics:
-        metrics_list.append(mse)
-    if 'top_5_accuracy' in metrics:
-        metrics_list.append(top_k_accuracy)   
-    return metrics_list
+def contvert_to_sklearn_metrics(metric: str):
+    while True:
+        if metric in F1_SCORING or metric in PRECISION_SCORING or metric in RECALL_SCORING or metric in ACCURACY_SCORING:
+            return metric
+        elif metric == 'mse':
+            return 'neg_mean_squared_error'
+        elif metric == 'mae':
+            return 'neg_mean_absolute_error'
+        else:
+            metric = input(f'Not a valid metric: {metric}. Input other metric: ')
 
-def val_score(y_true: List, y_pred: List, scoring: str):
-    if scoring in ACCURACY_SCORING:
-        return accuracy_score(y_true, y_pred)
-    elif scoring in F1_SCORING:
-        average = scoring[3:]
-        average = 'binary' if average == '' else average
-        return f1_score(y_true, y_pred, average=average)
-    elif scoring in PRECISION_SCORING:
-        average = scoring[10:]
-        average = 'binary' if average == '' else average
-        return precision_score(y_true, y_pred, average=average)
-    elif scoring in RECALL_SCORING:
-        average = scoring[7:]
-        average = 'binary' if average == '' else average
-        return recall_score(y_true, y_pred, average=average)
-    else:
-        raise ValueError(f'Unknown scoring: {scoring}')     
+def get_metrics_fastai(metric: str, model_type: str, add_top_5_acc=False):
+    metrics_list = []
+    
+    if model_type == 'C':
+        metrics_list.append(accuracy)
+        if metric == 'binary':
+            metrics_list.append(F1Score())
+            metrics_list.append(Precision())
+            metrics_list.append(Recall())
+        elif metric == 'micro':
+            metrics_list.append(F1Score(average='micro'))
+            metrics_list.append(Precision(average='micro'))
+            metrics_list.append(Recall(average='micro'))
+        elif metric == 'macro':
+            metrics_list.append(F1Score(average='macro'))
+            metrics_list.append(Precision(average='macro'))
+            metrics_list.append(Recall(average='macro'))
+        elif metric == 'samples':
+            metrics_list.append(F1Score(average='samples'))
+            metrics_list.append(Precision(average='samples'))
+            metrics_list.append(Recall(average='samples'))   
+        elif metric == 'weighted':
+            metrics_list.append(F1Score(average='weighted'))
+            metrics_list.append(Precision(average='weighted'))
+            metrics_list.append(Recall(average='weighted'))  
+            
+        if model_type == 'C' and add_top_5_acc:
+            metrics_list.append(top_k_accuracy)
+    else: 
+        metrics_list.append(mse)
+        metrics_list.append(mae)
+    
+    return metrics_list
 
 def relative_absolute_error(pred, y):
     dis = abs((pred-y)).sum()

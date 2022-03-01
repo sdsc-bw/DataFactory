@@ -22,7 +22,7 @@ import copy
 
 sys.path.append('../util')
 from ..util.constants import logger
-from ..util.metrics import val_score, get_metrics_fastai
+from ..util.metrics import get_metrics_fastai, contvert_to_sklearn_metrics
 from ..util.optimizer import get_optimizer_fastai
 from ..util.loss import get_loss_fastai
 from ..util.transforms import get_transforms_cv, update_transforms, get_transforms_fastai
@@ -41,7 +41,7 @@ class Model(metaclass=ABCMeta):
         pass
     
     @abstractmethod
-    def cross_val_score(self, cv=5, scoring='accuracy'):
+    def cross_val_score(self, cv=5, scoring='f1_micro'):
         pass
     
     @abstractmethod
@@ -74,9 +74,13 @@ class SklearnModel(Model):
     def fit(self):
         model.fit(self.X_train, self.y_test)
 
-    def cross_val_score(self, cv=5, scoring='accuracy'):
-        score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring=scoring)
-        return score
+    def cross_val_score(self, cv=5, scoring='f1_micro'):
+        scoring_temp = contvert_to_sklearn_metrics(scoring)
+        score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring=scoring_temp)
+        if scoring == 'mse' or scoring == 'mae':
+            return -score
+        else:
+            return score
     
     def predict(self, X: pd.Series):
         return self.model.predict(X)
@@ -86,7 +90,7 @@ class SklearnModel(Model):
     
 class TsaiModel(Model):
     
-    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict(), metric_average='micro'):
         super(TsaiModel, self).__init__(model_type)
         self.X = X.to_numpy()
         if self.X.ndim == 2:
@@ -99,7 +103,11 @@ class TsaiModel(Model):
         params = self.params.copy()
         self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
         self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
-        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy', 'f1_micro', 'recall_micro', 'precision_micro']))
+        self.num_classes = y.max() - 1
+        if self.num_classes < 6:
+            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type)
+        else:
+            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type, add_top_5_acc=True)
         self.transforms = get_transforms_fastai(params.get('batch_tfms', []))
         self.lr_max = params.get('lr_max', 1e-3)
         self.epochs = params.get('epochs', 25)
@@ -110,8 +118,8 @@ class TsaiModel(Model):
             del params['loss_func']
         if 'opt_func' in params:
             del params['opt_func']
-        if 'metrics' in params:
-            del params['metrics']
+        if 'metric_average' in params:
+            del params['metric_average']
         if 'batch_tfms' in params:
             del params['batch_tfms']
         if 'lr_max' in params:
@@ -151,11 +159,16 @@ class TsaiModel(Model):
             self.fit()
             if scoring == 'accuracy':
                 scores[i] = self.learn.recorder.values[-1][2]
+            elif scoring.startswith('f1'):
+                scores[i] = self.learn.recorder.values[-1][3]
+            elif scoring.startswith('precision'):
+                scores[i] = self.learn.recorder.values[-1][4]
+            elif scoring.startswith('recall'):
+                scores[i] = self.learn.recorder.values[-1][5]
             else:
-                _, targets, preds = self.learn.get_X_preds(self.shuffled_X[self.splits[1]], self.shuffled_y[self.splits[1]])
-                targets = targets.cpu().detach().numpy().tolist()
-                preds = [int(p) for p in preds]
-                scores[i] = val_score(targets, preds, scoring)
+                logger.warn(f'Unknown scoring: {scoring}. Using f1 instead')
+                scores[i] = self.learn.recorder.values[-1][3]
+            
         clear_output()
         return scores
     
@@ -186,14 +199,12 @@ class TsaiModel(Model):
     
     def get_params(self):
         params = self.params.copy()
-        if 'metrics' in params:
-            del params['metrics']
         return params
 
 
 class PytorchCVModel(Model): 
         
-    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict()):
+    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict(), metric_average='micro'):
         super(PytorchCVModel, self).__init__(model_type)
         self.params = params
         self.dataset = copy.deepcopy(dataset) # WARNING, maybe problematic for large datasets
@@ -210,7 +221,6 @@ class PytorchCVModel(Model):
         self.transforms = get_transforms_cv(params.get('batch_tfms', []), params=params.get('batch_tfms_params', dict()))
         self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
         self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
-        self.metrics = get_metrics_fastai(params.get('metrics', ['accuracy', 'f1_micro', 'recall_micro', 'precision_micro']))
         if type(dataset) == torchvision.datasets.folder.ImageFolder:
             self.num_classes = len(dataset.classes)
         else:
@@ -221,6 +231,10 @@ class PytorchCVModel(Model):
         if params.get('batch_tfms', []) != []:
             self.dataset.transform = self.transforms
         self._check_and_fix_in_size()
+        if self.num_classes < 6:
+            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type)
+        else:
+            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type, add_top_5_acc=True)
         ############## process params #################
         
         self.train_size = int(0.8 * len(dataset))
@@ -240,10 +254,6 @@ class PytorchCVModel(Model):
 
     def fit(self):
         self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
-        
-# TODO rework to be consistent with tsai                 
-    def evaluate(self):
-        self._test(self.test_loader)
 
     def cross_val_score(self, cv: int=5, scoring: str='f1_micro'):  
         scores = np.zeros(cv)
@@ -255,8 +265,15 @@ class PytorchCVModel(Model):
             self.fit()
             if scoring == 'accuracy':
                 scores[i] = self.learn.recorder.values[-1][2]
+            elif scoring.startswith('f1'):
+                scores[i] = self.learn.recorder.values[-1][3]
+            elif scoring.startswith('precision'):
+                scores[i] = self.learn.recorder.values[-1][4]
+            elif scoring.startswith('recall'):
+                scores[i] = self.learn.recorder.values[-1][5]
             else:
-                scores[i] = self._test(dataloader.valid, scoring=scoring)
+                logger.warn(f'Unknown scoring: {scoring}. Using f1 instead')
+                scores[i] = self.learn.recorder.values[-1][3]
         clear_output()
         return scores
 
@@ -275,41 +292,27 @@ class PytorchCVModel(Model):
         outputs = self.learn.model(X)
         return outputs.cpu().detach().numpy()
 
-    def _test(self, test_loader: DataLoader, scoring: str='f1_micro'):
-        correct = 0
-        total = 0
-        preds = []
-        targets = []
-        self.model.eval()
-        
-        with torch.no_grad():
-            for data in test_loader:
-                images, labels = data[0].to(self.device), data[1].to(self.device)
-                outputs = self.model(images)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-                
-                for p in predicted:
-                    preds.append(p.cpu().detach().numpy().tolist())
-                for t in labels:
-                    targets.append(t.cpu().detach().numpy().tolist())  
-        if scoring == 'accuracy':
-            score = correct / total
-        else:
-            score = val_score(targets, preds, scoring)  
-        return score                       
-    
     def _check_and_fix_in_size(self):    
         if 'resize' not in self.params.get('batch_tfms', []) and self.in_size not in self.std_in_sizes:
             logger.info(f"No transformation given. Resize images to standard input size of: {self.name}")
             self.in_size = min(self.std_in_sizes, key=lambda x: abs(x[0]- self.in_size[0]) + abs(x[1]- self.in_size[1]))
             new_transforms = [transforms.Resize(self.in_size)]
             update_transforms(self.dataset, new_transforms)
+            
+    def plot_metrics(self):
+        self.learn.plot_metrics()
+        
+    def plot_probas(self):
+        self.learn.show_probas()
+        
+    def plot_results(self):
+        self.learn.show_results()
+        
+    def plot_confusion_matrix(self):
+        interp = ClassificationInterpretation.from_learner(self.learn)
+        interp.plot_confusion_matrix()
         
     def get_params(self):
         params = self.params.copy()
-        if 'metrics' in params:
-            del params['metrics']
         return params
     

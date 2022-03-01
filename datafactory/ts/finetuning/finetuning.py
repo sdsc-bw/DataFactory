@@ -14,6 +14,7 @@ from tsai.all import *
 from .search_space import std_search_space
 
 sys.path.append('../../models')
+from ...models.model import SklearnModel
 from ...models.decision_tree import DecisionTree
 from ...models.random_forest import RandomForest
 from ...models.ada_boost import AdaBoost
@@ -48,9 +49,11 @@ TEMP_Y = None
 MODEL_TYPE = None
 CV = 5
 RESULTS = None
-SCORING = 'f1'
+RANKING = 'f1'
+AVERAGE = 'micro'
+SCORING = RANKING + '_' + AVERAGE
 
-def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C', scoring='f1_micro'):
+def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list=['decision_tree'], params: Dict=dict(), max_evals: int=32, cv: int=5, model_type: str='C', ranking='f1', average='micro'):
     """Finetunes one or multiple models according with hyperopt.
         
     Keyword arguments:
@@ -70,13 +73,18 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
     global MODEL_TYPE
     global CV 
     global RESULTS
+    global RANKING
+    global AVERAGE
     global SCORING
     TEMP_X = X
     TEMP_Y = y
     MODEL_TYPE = model_type
     CV = cv
-    RESULTS = pd.DataFrame(columns=['Model', 'Score', 'Hyperparams', 'Time'])
-    SCORING = scoring
+    RESULTS = pd.DataFrame(columns=['model', ranking, 'hyperparams', 'time'])
+    
+    RANKING = ranking
+    if SCORING != 'accuracy' or SCORING != 'mse' or SCORING != 'mae':
+        SCORING = RANKING + '_' + AVERAGE
         
     trials = Trials()
     
@@ -99,19 +107,27 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
         
     #best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
     
-    # reset # TODO maybe use tempfiles
+    # TODO maybe use tempfiles
     TEMP_X = None
     TEMP_Y = None
     MODEL_TYPE = None
     CV = 5
     RESULTS = None
-    SCORING = 'f1'
+    RANKING = 'f1'
+    AVERAGE = 'micro'
+    SCORING = RANKING + '_' + AVERAGE
+    
+    #if not isinstance(best_model, SklearnModel):
+    #    logger.info('Training details:')
+    #    best_model.plot_metrics()
+
         
     #return best_model
 
 def _objective(params):
     global CV
     global RESULTS
+    global RANKING
     global SCORING
     start = time.time()
     model = params['model']
@@ -129,15 +145,24 @@ def _objective(params):
     
     clear_output()
     RESULTS.loc[len(RESULTS)] = [model.get_name(), score, model.get_params(), elapsed]
-    RESULTS.sort_values(by='Score', ascending=False, ignore_index=True, inplace=True)
+    if RANKING == 'mse' or RANKING == 'mae':
+        RESULTS.sort_values(by=RANKING, ascending=True, ignore_index=True, inplace=True)
+    else:
+        RESULTS.sort_values(by=RANKING, ascending=False, ignore_index=True, inplace=True)
     display(RESULTS)
     
-    return {'loss': -score, 'status': STATUS_OK, 'model': model, 'elapsed': elapsed}
+    # clear cache
+    del model
+    torch.cuda.empty_cache()
+    gc.collect()
+    
+    return {'loss': -score, 'status': STATUS_OK, 'elapsed': elapsed}
 
 def _get_model(model, params=dict()):
     global TEMP_X
     global TEMP_Y
     global MODEL_TYPE
+    global AVERAGE
     if model == 'decision_tree':
         return DecisionTree(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'random_forest':  
@@ -155,39 +180,39 @@ def _get_model(model, params=dict()):
     elif model == 'bayesian_ridge':
         return BayesianRidge(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
     elif model == 'inception_time':
-        return InceptionTime(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return InceptionTime(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'inception_time_plus':
-        return InceptionTimePlus(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return InceptionTimePlus(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'fcn':
-        return FCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return FCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'gru':
-        return GRU(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return GRU(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'gru_fcn':
-        return GRUFCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return GRUFCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'lstm':
-        return LSTM(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return LSTM(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'lstm_fcn':
-        return LSTMFCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return LSTMFCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'mlp':
-        return MLP(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return MLP(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'mwdn':
-        return MWDN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return MWDN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'omni_scale':
-        return OmniScale(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return OmniScale(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'res_cnn':
-        return ResCNN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return ResCNN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'res_net':
-        return ResNet(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return ResNet(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'tab_model':
-        return TabModel(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return TabModel(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'tcn':
-        return TCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return TCN(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'tst':
-        return TST(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return TST(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'xception_time':
-        return XceptionTime(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return XceptionTime(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     elif model == 'xcm':
-        return XCM(TEMP_X, TEMP_Y, MODEL_TYPE, params=params)
+        return XCM(TEMP_X, TEMP_Y, MODEL_TYPE, params=params, metric_average=AVERAGE)
     else:
         logger.warn(f'Skipping model. Unknown model: {model}')
 

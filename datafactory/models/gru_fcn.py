@@ -11,7 +11,7 @@ from .model import TsaiModel
 
 class GRUFCN(TsaiModel):
     
-    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict(), metric_average: str='micro'):
         self.arch = GRU_FCN
         super(GRUFCN, self).__init__(X, y, model_type, params)
         
