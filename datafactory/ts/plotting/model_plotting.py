@@ -7,6 +7,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+
 # plo package
 from sklearn import tree
 import graphviz
@@ -17,10 +19,35 @@ from dtreeviz.trees import dtreeviz # remember to load the package
 from tqdm import tqdm
 from matplotlib.colors import ListedColormap
 
-def plot_decision_tree_classification(dat, dat_y):
+def plot_decision_tree_classification(dat: pd.DataFrame, dat_y: pd.Series):
   # train decision tree model
   X_train, X_test, y_train, y_test = train_test_split(dat, dat_y, random_state=0)
   clf = DecisionTreeClassifier(max_depth=5).fit(X_train, y_train)
+
+  # DOT data
+  dot_data = tree.export_graphviz(clf, out_file=None, 
+                                  feature_names=dat.columns,  
+                                  class_names='target',
+                                  filled=True)
+  # Draw graph
+  graph = graphviz.Source(dot_data, format="png") 
+  #graph.save('./test.png')
+
+  # viz plot
+  viz = dtreeviz(clf, dat, dat_y,
+                  target_name="target",
+                  feature_names=dat.columns,
+                  class_names=list('target'))
+
+  return graph, viz 
+
+def plot_decision_tree_regression(dat: pd.DataFrame, dat_y: pd.Series):
+  """
+  no test jet!!
+  """
+  # train decision tree model
+  X_train, X_test, y_train, y_test = train_test_split(dat, dat_y, random_state=0)
+  clf = DecisionTreeRegression(max_depth=5).fit(X_train, y_train)
 
   # DOT data
   dot_data = tree.export_graphviz(clf, out_file=None, 
