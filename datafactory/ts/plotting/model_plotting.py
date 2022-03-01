@@ -7,6 +7,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+# plo package
+from sklearn import tree
+import graphviz
+import numpy as np
+import matplotlib.pyplot as plt
+
+from dtreeviz.trees import dtreeviz # remember to load the package
+from tqdm import tqdm
+from matplotlib.colors import ListedColormap
+
 def plot_decision_tree_classification(dat, dat_y):
   # train decision tree model
   X_train, X_test, y_train, y_test = train_test_split(dat, dat_y, random_state=0)
