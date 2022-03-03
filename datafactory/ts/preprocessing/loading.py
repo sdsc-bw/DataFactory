@@ -21,6 +21,15 @@ from ...util.constants import logger
 from ...util.metrics import evaluate
 
 def split_df(df: pd.DataFrame, target_col=None):
+    """Splits a dataframe into data and target.
+        
+    Keyword arguments:
+    df -- dataframe
+    target_col -- name of target column, if None uses last column
+    Output:
+    data
+    and targets
+    """
     if target_col:
         df = df.copy() # WARNING could be problematic for large data
         y = df[target_col]
@@ -39,9 +48,7 @@ def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str],
     sep -- seperator of the dataset to seperate cells if csv-file
     shuffle -- if data should be shuffled
     Output:
-    data
-    and targets
-    and baseline
+    dataframe or list of dataframes
     """
     
     #TODO maybe method to automatically identify data_type
@@ -81,9 +88,7 @@ def load_dataset_from_database(database: Union[list,str], query: Union[list,str]
     sep -- seperator of the dataset to seperate cells if csv-file
     shuffle -- if data should be shuffled
     Output:
-    data
-    and targets
-    and baseline
+    dataframe or list of dataframes
     """
     if type(database) == str:
         connection = sqlite3.connect(database)

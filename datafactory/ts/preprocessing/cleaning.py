@@ -71,3 +71,7 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None) -> pd.Dat
     print(f'End with Data cleaning, number of INF- and NAN-values are now: ({bcolors.HEADER}{bcolors.BOLD}{(data == np.inf).sum().sum()}{bcolors.ENDC}, {bcolors.HEADER}{bcolors.BOLD}{data.isna().sum().sum()}{bcolors.ENDC})', file = file)
     #data = data.reset_index(drop=True)
     return data
+
+def combine_dataframes(dfs: List, samling_strategy='upsampling', merge=True):
+    
+    
