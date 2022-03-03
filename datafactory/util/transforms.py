@@ -16,7 +16,7 @@ def update_transforms(dataset, new_transforms):
     new_transforms = curr_transforms + new_transforms
     dataset.transform = transforms.Compose(new_transforms)
 
-def get_transforms_fastai(transforms: list):
+def get_transforms_ts(transforms: list):
     transforms_list = []
     if 'standardize' in transforms:
         transforms_list.append(TSStandardize())

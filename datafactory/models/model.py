@@ -25,7 +25,7 @@ from ..util.constants import logger
 from ..util.metrics import get_metrics_fastai, contvert_to_sklearn_metrics
 from ..util.optimizer import get_optimizer_fastai
 from ..util.loss import get_loss_fastai
-from ..util.transforms import get_transforms_cv, update_transforms, get_transforms_fastai
+from ..util.transforms import get_transforms_cv, update_transforms, get_transforms_ts
 
 class Model(metaclass=ABCMeta):
     
@@ -53,7 +53,8 @@ class Model(metaclass=ABCMeta):
         pass
     
     def get_params(self):
-        return self.params
+        params = self.params.copy()
+        return params
 
     def get_name(self):
         return self.name
@@ -87,31 +88,26 @@ class SklearnModel(Model):
     
     def predict_probas(self, X: pd.Series):
         return self.model.predict_probas(X)
+
+class FastAIModel(Model):
     
-class TsaiModel(Model):
-    
-    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict(), metric_average='micro'):
-        super(TsaiModel, self).__init__(model_type)
-        self.X = X.to_numpy()
-        if self.X.ndim == 2:
-            self.X = self.X.reshape(self.X.shape[0], self.X.shape[1], 1)
-        self.y = y.to_numpy()
+    def __init__(self, model_type: str, params:Dict=dict(), metric_average='micro', device='gpu'):
+        super(FastAIModel, self).__init__(model_type)
+        
+        if device == 'gpu':
+            self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        elif device == 'cpu':
+                    self.device = torch.device('cpu')
+        else:
+            self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
+            
         self.params = params
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-      
         ############## process params #################
         params = self.params.copy()
         self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
         self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
-        self.num_classes = y.max() - 1
-        if self.num_classes < 6:
-            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type)
-        else:
-            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type, add_top_5_acc=True)
-        self.transforms = get_transforms_fastai(params.get('batch_tfms', []))
         self.lr_max = params.get('lr_max', 1e-3)
         self.epochs = params.get('epochs', 25)
-        self.splits = TSSplitter(valid_size=0.2, show_plot=False)
         self.bs = params.get('batch_size', [64, 128])
         
         if 'loss_func' in params:
@@ -126,14 +122,62 @@ class TsaiModel(Model):
             del params['lr_max']
         if 'epochs' in params:
             del params['epochs']
-        if 'splits' in params:
-            del params['splits']
         if 'batch_size' in params:
             del params['batch_size']
         self.params_arch = params
         ############## process params #################
         
-        self._init_learner()
+    @abstractmethod    
+    def _init_learner(self):
+        pass
+        
+    def fit(self):
+        self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
+        
+    @abstractmethod
+    def cross_val_score(self, cv=5, scoring='f1'):
+        pass
+    
+    @abstractmethod
+    def predict(self, X):
+        pass
+    
+    @abstractmethod
+    def predict_probas(self, X):
+        pass
+    
+    def plot_metrics(self):
+        self.learn.plot_metrics()
+        
+    def plot_probas(self):
+        self.learn.show_probas()
+        
+    def plot_results(self):
+        self.learn.show_results()
+        
+    def plot_confusion_matrix(self):
+        interp = ClassificationInterpretation.from_learner(self.learn)
+        interp.plot_confusion_matrix()
+        
+class TsaiModel(FastAIModel):
+    
+    def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict(), metric_average='micro', device='gpu'):
+        super(TsaiModel, self).__init__(model_type, params=params, metric_average=metric_average, device=device)
+        self.X = X.to_numpy()
+        if self.X.ndim == 2:
+            self.X = self.X.reshape(self.X.shape[0], self.X.shape[1], 1)
+        self.y = y.to_numpy()
+        
+        ############## process params #################
+        self.splits = TSSplitter(valid_size=0.2, show_plot=False)
+        self.transforms = get_transforms_ts(params.get('batch_tfms', []))
+        self.num_classes = y.max() - 1
+        if self.num_classes < 6:
+            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type)
+        else:
+            self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type, add_top_5_acc=True)
+        self.splits = TSSplitter(valid_size=0.2, show_plot=False)
+        ############## process params #################
             
     def _init_learner(self):
         if self.model_type == 'C':
@@ -148,9 +192,6 @@ class TsaiModel(Model):
         self.splits = TSSplitter()(self.shuffled_X)
         self.learn = learner(self.shuffled_X, self.shuffled_y, bs=self.bs, splits=self.splits, batch_tfms=self.transforms, arch=self.arch, 
                              metrics=self.metrics, arch_config=self.params_arch, device=self.device)
-       
-    def fit(self):
-        self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
                 
     def cross_val_score(self, cv=5, scoring='f1'):
         scores = np.zeros(cv)
@@ -183,53 +224,29 @@ class TsaiModel(Model):
             X = self.X.reshape(X.shape[0], X.shape[1], 1)
         probas, _, _ = self.learn.get_X_preds(X)
         return probas
-    
-    def plot_metrics(self):
-        self.learn.plot_metrics()
-        
-    def plot_probas(self):
-        self.learn.show_probas()
-        
-    def plot_results(self):
-        self.learn.show_results()
-        
-    def plot_confusion_matrix(self):
-        interp = ClassificationInterpretation.from_learner(self.learn)
-        interp.plot_confusion_matrix()
-    
-    def get_params(self):
-        params = self.params.copy()
-        return params
 
 
-class PytorchCVModel(Model): 
+class PytorchCVModel(FastAIModel): 
         
-    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict(), metric_average='micro'):
-        super(PytorchCVModel, self).__init__(model_type)
+    def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict(), metric_average='micro', device='gpu'):
+        super(PytorchCVModel, self).__init__(model_type, params=params, metric_average=metric_average, device=device)
         self.params = params
         self.dataset = copy.deepcopy(dataset) # WARNING, maybe problematic for large datasets
-        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        #self.device = torch.device('cpu')
         
         ############## process params #################
-        params = self.params.copy()
-        self.lr_max = params.get('lr_max', 1e-3)
-        self.lr_max = 1e-5 # TODO delete
-        self.epochs = params.get('epochs', 100)
-        self.bs = params.get('batch_size', 16) 
         self.pretrained = params.get('pretrained', False)
         self.transforms = get_transforms_cv(params.get('batch_tfms', []), params=params.get('batch_tfms_params', dict()))
-        self.loss = get_loss_fastai(params.get('loss_func', 'cross_entropy'))
-        self.optimizer = get_optimizer_fastai(params.get('opt_func', 'adam'))
+
         if type(dataset) == torchvision.datasets.folder.ImageFolder:
             self.num_classes = len(dataset.classes)
         else:
             self.num_classes = input('Found no imformation about number of classes. Please enter number of classes: ')
+            
         dataset_shape = dataset[0][0].shape
         self.in_channels = dataset_shape[0]
         self.in_size = dataset_shape[1], dataset_shape[2]
         if params.get('batch_tfms', []) != []:
-            self.dataset.transform = self.transforms
+            update_transforms(self.dataset.transform, self.transforms)
         self._check_and_fix_in_size()
         if self.num_classes < 6:
             self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type)
@@ -251,9 +268,6 @@ class PytorchCVModel(Model):
         self._init_model()
         self.learn = Learner(dataloader, self.model, metrics=self.metrics, loss_func=self.loss, opt_func=self.optimizer)
         self.learn.model.to(self.device)
-
-    def fit(self):
-        self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
 
     def cross_val_score(self, cv: int=5, scoring: str='f1_micro'):  
         scores = np.zeros(cv)
@@ -293,26 +307,9 @@ class PytorchCVModel(Model):
         return outputs.cpu().detach().numpy()
 
     def _check_and_fix_in_size(self):    
-        if 'resize' not in self.params.get('batch_tfms', []) and self.in_size not in self.std_in_sizes:
-            logger.info(f"No transformation given. Resize images to standard input size of: {self.name}")
+        if 'resize' not in self.params.get('batch_tfms', []) and self.in_size not in self.std_in_sizes:            
             self.in_size = min(self.std_in_sizes, key=lambda x: abs(x[0]- self.in_size[0]) + abs(x[1]- self.in_size[1]))
+            logger.info(f"No resize given. Resize images to standard input size of {self.name}: {self.in_size}")
             new_transforms = [transforms.Resize(self.in_size)]
             update_transforms(self.dataset, new_transforms)
-            
-    def plot_metrics(self):
-        self.learn.plot_metrics()
-        
-    def plot_probas(self):
-        self.learn.show_probas()
-        
-    def plot_results(self):
-        self.learn.show_results()
-        
-    def plot_confusion_matrix(self):
-        interp = ClassificationInterpretation.from_learner(self.learn)
-        interp.plot_confusion_matrix()
-        
-    def get_params(self):
-        params = self.params.copy()
-        return params
     
