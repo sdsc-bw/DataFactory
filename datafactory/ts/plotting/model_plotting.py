@@ -196,7 +196,29 @@ def get_model_with_name_regression(name:str):
         model = RandomForestRegressor()
     
     return model
-  
+
+def plot_decision_tree_classification(dat, dat_y):
+  # train decision tree model
+  X_train, X_test, y_train, y_test = train_test_split(dat, dat_y, random_state=0)
+  clf = DecisionTreeClassifier(max_depth=5).fit(X_train, y_train)
+
+  # DOT data
+  dot_data = tree.export_graphviz(clf, out_file=None, 
+                                  feature_names=dat.columns,  
+                                  class_names='target',
+                                  filled=True)
+  # Draw graph
+  graph = graphviz.Source(dot_data, format="png") 
+  #graph.save('./test.png')
+
+  # viz plot
+  viz = dtreeviz(clf, dat, dat_y,
+                  target_name="target",
+                  feature_names=dat.columns,
+                  class_names=list('target'))
+
+  return graph, viz       
+
 def plot_model_comparison(self, x_results: list , y_results: list, ptype: str='plot', title: str='', save_path: str=None, id: int=None):
     """Creates a plot of the given columns in the dataframe. Saves the plot at a given path.
         
