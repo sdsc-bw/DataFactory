@@ -18,7 +18,6 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None) -> pd.Dat
     Keyword arguments:
     dat -- dataframe
     strategy -- cleaning strategy, should be in ['model', 'mean', 'median', 'most_frequent', 'constant']
-    file -- file to save the cleaning information
     Output:
     data -- cleaned dataframe
     """
@@ -27,20 +26,21 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None) -> pd.Dat
         
     logger.info('Start to clean the given dataframe...')
     
-    print('#'*30, file = file)
-    print('clean na and inf in the data', file = file)
-    print('#'*30, file = file)
-    
-    print(f'Number of INF- and NAN-values are: ({bcolors.HEADER}{bcolors.BOLD}{(data == np.inf).sum().sum()}{bcolors.ENDC}, {bcolors.HEADER}{bcolors.BOLD}{data.isna().sum().sum()}{bcolors.ENDC})', file = file)
-    print('Set type to float32 at first && deal with INF', file = file)
+    #print('#'*30)
+    print('#### clean na and inf in the data \n', file = file)
+    #print('#'*30)
     
     data = data.astype(np.float32)
+    
+    print(f'Number of INF- and NAN-values are: (***{(data == np.inf).sum().sum()}***, ***{data.isna().sum().sum()}***) \n', file = file)
+    print('Set all numeric feature type to float32 at first && deal with INF \n', file = file)
+    
     data = data.replace([np.inf, -np.inf], np.nan)
     
-    print(f'Remove columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=0.5].to_list()}', file = file)
+    print(f'Remove columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=0.5].to_list()} \n', file = file)
     data = data.dropna(axis=1, thresh=data.shape[0] * .5)
     
-    print(f'Remove constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()}', file = file)
+    print(f'Remove constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()} \n', file = file)
     data = data.loc[:, (data != data.iloc[0]).any()]
 
     if data.isna().sum().sum() > 0:
@@ -68,10 +68,6 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None) -> pd.Dat
     #logger.info('Remove rows with any nan in the end')
     #data = data.dropna(axis=0, how='any')
     logger.info(f'...End with Data cleaning, number of INF- and NAN-values are now: ({(data == np.inf).sum().sum()}, {data.isna().sum().sum()})')
-    print(f'End with Data cleaning, number of INF- and NAN-values are now: ({bcolors.HEADER}{bcolors.BOLD}{(data == np.inf).sum().sum()}{bcolors.ENDC}, {bcolors.HEADER}{bcolors.BOLD}{data.isna().sum().sum()}{bcolors.ENDC})', file = file)
+    print(f'End with Data cleaning, number of INF- and NAN-values are now: (***{(data == np.inf).sum().sum()}***, ***{data.isna().sum().sum()}***) \n', file = file)
     #data = data.reset_index(drop=True)
     return data
-
-def combine_dataframes(dfs: List, samling_strategy='upsampling', merge=True):
-    
-    
