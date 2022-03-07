@@ -309,7 +309,7 @@ def main():
         html.Hr(),
         
         html.H4("Comparison of basic model performance"),
-        ###TODO!!!!: add dropdown to select the target model
+        ###TODO!!!!: add dropdown to select the target metric. maybe use checklist instead of dropdown
         dcc.Dropdown(
             id = "dropdown_basic_model_comparison",
             options = available_models,
