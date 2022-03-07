@@ -10,7 +10,7 @@ import time
 
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
-# plo package
+# plot package
 from sklearn import tree
 import graphviz
 import numpy as np
@@ -19,6 +19,11 @@ import matplotlib.pyplot as plt
 from dtreeviz.trees import dtreeviz # remember to load the package
 from tqdm import tqdm
 from matplotlib.colors import ListedColormap
+
+import plotly.express as px
+import plotly.graph_objs as go
+import plotly.figure_factory as ff
+from plotly.subplots import make_subplots
 
 # model packages
 from sklearn.model_selection import train_test_split
