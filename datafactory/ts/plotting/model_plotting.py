@@ -19,7 +19,10 @@ from dtreeviz.trees import dtreeviz # remember to load the package
 from tqdm import tqdm
 from matplotlib.colors import ListedColormap
 
-def basic_model_comparison_classification(dat, dat_y, models):
+def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, models: list):
+  """
+  run selected models and return dataframe and comparison figure as result
+  """
   # setting:
   classifiers = [get_model_with_name_classification(i) for i in models]
 
@@ -70,7 +73,7 @@ def basic_model_comparison_classification(dat, dat_y, models):
 
   return results, fig        
         
-def basic_model_comparison_regression(dat, dat_y, models):
+def basic_model_comparison_regression(dat: pd.DataFrame, dat_y: pd.Series, models: list):
   # setting:
   regressors = [get_model_with_name_regressor(i) for i in models]
   reg_metrics = ['explained_variance', 'max_error', 'neg_mean_absolute_error','neg_mean_squared_error','r2']
@@ -119,6 +122,81 @@ def basic_model_comparison_regression(dat, dat_y, models):
 
   return results, fig   
 
+def get_model_with_name_classification(name:str):
+    if name == 'baseline':
+        model = DummyClassifier()
+    
+    elif name == 'knn':
+        model = KNeighborsClassifier(3)
+    
+    elif name == 'svc':
+        model = SVC(gamma=2, C=1)
+    
+    elif name == 'gaussianprocess':
+        model = GaussianProcessClassifier(1.0 * RBF(1.0))
+    
+    elif name == 'decisiontree':
+        model = DecisionTreeClassifier(max_depth=5)
+    
+    elif name == 'randomforest':
+        model = RandomForestClassifier()
+    
+    elif name == 'mlp':
+        model = MLPClassifier(max_iter=1000)
+    
+    elif name == 'adabbost':
+        model = AdaBoostClassifier()
+    
+    elif name == 'gaussian-nb':
+        model = GaussianNB()
+    
+    elif name == 'qda':
+        model = QuadraticDiscriminantAnalysis()
+    
+    else:
+        model = RandomForestClassifier()
+        
+    return model
+    
+def get_model_with_name_regression(name:str):
+    if name == 'baseline':
+        model = DummyRegressor()
+        
+    elif name == 'linear':
+        model = LinearRegression()
+        
+    elif name == 'svr':
+        model = SVR()
+    
+    elif name == 'svr-poly':
+        model = SVR(kernel='poly')
+    
+    elif name == 'svr-sigmoid':
+        model = SVR(kernel='sigmoid')
+    
+    elif name == 'gaussianprocess':
+        model = GaussianProcessRegressor()
+    
+    elif name == 'gaussianprocess-dw':
+        model = GaussianProcessRegressor(kernel=DotProduct() + WhiteKernel())
+    
+    elif name == 'decisiontree':
+        model = DecisionTreeRegressor()
+    
+    elif name == 'randomforest':
+        model = RandomForestRegressor()
+    
+    elif name == 'mlp':
+        model = MLPRegressor(max_iter=1000)
+    
+    elif name == 'adaboost':
+        model = AdaBoostRegressor()
+    
+    else:
+        model = RandomForestRegressor()
+    
+    return model
+  
 def plot_model_comparison(self, x_results: list , y_results: list, ptype: str='plot', title: str='', save_path: str=None, id: int=None):
     """Creates a plot of the given columns in the dataframe. Saves the plot at a given path.
         
