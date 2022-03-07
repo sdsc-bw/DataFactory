@@ -19,6 +19,27 @@ from dtreeviz.trees import dtreeviz # remember to load the package
 from tqdm import tqdm
 from matplotlib.colors import ListedColormap
 
+# model packages
+from sklearn.model_selection import train_test_split
+
+from sklearn.dummy import DummyClassifier, DummyRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import cross_validate
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC, SVR
+from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, RandomForestRegressor, AdaBoostRegressor 
+from sklearn.naive_bayes import GaussianNB
+
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+
+import warnings
+warnings.filterwarnings("ignore")
+
 def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, models: list):
   """
   run selected models and return dataframe and comparison figure as result
