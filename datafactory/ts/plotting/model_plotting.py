@@ -304,7 +304,7 @@ def plot_feature_importance_of_random_forest(X: pd.DataFrame, y: pd.Series, art:
         the index is the feature names and the value is the corresponding importance of the feature
     """
     if art == 'C':
-    forest = RandomForestClassifier(random_state=0)
+        forest = RandomForestClassifier(random_state=0)
 
     elif art == 'R':
         forest = RandomForestRegressor(random_state=0)
