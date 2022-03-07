@@ -34,7 +34,6 @@ import os
 import sys
 sys.path.append('../../DataFactory-develop 2/')
 
-from datafactory.ts.preprocessing.loading import * # methods for dataset loading
 from datafactory.ts.preprocessing.encoding import * # methods for encoding
 from datafactory.ts.preprocessing.outlier_detecting import outlier_detection_feature, outlier_detection_dataframe # methods for outlier detection
 from datafactory.ts.preprocessing.cleaning import * # methods for data cleaning
@@ -42,25 +41,8 @@ from datafactory.ts.preprocessing.sampling import * # mehtods for sampling
 from datafactory.ts.preprocessing.validating import * # methods for data checking
 from datafactory.ts.plotting.model_plotting import * # plot method
 
-# model package
-from sklearn.model_selection import train_test_split
 
-from sklearn.dummy import DummyClassifier, DummyRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import cross_validate
-from sklearn.neural_network import MLPClassifier, MLPRegressor
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC, SVR
-from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
-from sklearn.gaussian_process.kernels import DotProduct, WhiteKernel
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, RandomForestRegressor, AdaBoostRegressor 
-from sklearn.naive_bayes import GaussianNB
-
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
-
-# plot
+# plot tree
 from sklearn import tree
 import graphviz
 import numpy as np
