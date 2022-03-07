@@ -2,6 +2,10 @@
 This Github is mainly used to introduce some commonly used methods, as well as some feature engineering methods independently researched and developed by SDSC staff. It unites and unifies methods from different packages like [imblearn](https://imbalanced-learn.org/stable/), [sklearn](https://scikit-learn.org/stable/index.html), [hyperopt](https://github.com/hyperopt/hyperopt) and [tsai](https://github.com/timeseriesAI/tsai). 
 The common dataminig process and how to use the DataFactory for this is shown in our [demos](https://github.com/sdsc-bw/DataFactory/tree/develop/demos).
 
+## Run (Temporary, to be removed)
+Go to the root directory and use the following code to create the test report:
+``python usersry_01_01_dash.py --datapath=./data/dataset_31_credit-g.csv --outputpath=./results/``
+
 ## Preprocessing
 We offer methods for data preprocessing. This includes label encoding, data balancing, sampling and dealing with NA values and outliers.
 
