@@ -72,6 +72,10 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None) -> pd.Dat
     #data = data.reset_index(drop=True)
     return data
 
-def combine_dataframes(dfs: List, samling_strategy='upsampling', merge=True):
-    
-    
+def combine_dataframes(dfs: List, strategy: str='merge_nearest_index', date_col: str='date'):
+    if strategy == 'merge_nearest_index':
+        dfs = sort_by_sample_rate(dfs)
+        
+def sort_by_sample_rate(dfs: List):
+    dfs_sorted = sorted(dfs, key=lambda x: x.index.to_series().diff().median(), reverse=True)
+    return dfs_sorted

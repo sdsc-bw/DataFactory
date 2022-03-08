@@ -39,7 +39,7 @@ def split_df(df: pd.DataFrame, target_col=None):
     return X, y
     
 
-def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str], header=None, sep: str=',', shuffle: bool=True, transform: List=None) -> Union[pd.DataFrame, List]:    
+def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str], header='infer', sep: str=',', index_col=0, time_format: str=None, shuffle: bool=True, transform: List=None) -> Union[pd.DataFrame, List]:    
     """Loads one or multiple datasets from the given file paths.
         
     Keyword arguments:
@@ -53,7 +53,7 @@ def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str],
     
     #TODO maybe method to automatically identify data_type
     if type(file_path_or_buffer) == str:
-        df = _read_file(data_type, i, header=header, sep=sep)
+        df = _read_file(data_type, i, header=header, sep=sep, index_col=index_col)
 
         if transform:
             df = apply_transforms(df, transform)
@@ -66,7 +66,7 @@ def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str],
     elif type(file_path_or_buffer) == list:
         dfs = []
         for i in file_path_or_buffer:
-            df = _read_file(data_type, i, header=header, sep=sep)
+            df = _read_file(data_type, i, header=header, sep=sep, index_col=index_col)
 
             if transform:
                 df = apply_transforms(df, transform)
@@ -116,15 +116,22 @@ def load_dataset_from_database(database: Union[list,str], query: Union[list,str]
         raise AttributeError(f'Unknown datatype of database: {database}')
         
 
-def _read_file(data_type: str, file_path_or_buffer: str, header=None, sep=','):
+def _read_file(data_type: str, file_path_or_buffer: str, header: str='infer', sep: str=',', index_col: Union[int, str]=0, time_format=None):
     if data_type == 'csv':
-        df = pd.read_csv(file_path_or_buffer, sep=sep, index_col=0, header=header)
+        df = pd.read_csv(file_path_or_buffer, sep=sep, header=header)
     elif data_type == 'xml':
         df = pd.read_xml(file_path_or_buffer)
     elif data_type == 'txt':
-        df = pd.read_fwf(file_path_or_buffer, header=header, index_col=0)
+        df = pd.read_fwf(file_path_or_buffer, header=header)
+        
     else:
         raise AttributeError(f'Unknown datatype of file: {data_type}')
+        
+    if type(index_col) == str:
+        df[index_col] = pd.to_datetime(df[index_col], format=time_format)    
+    if index_col:
+        df = df.set_index(index_col)
+        
     return df
     
     
