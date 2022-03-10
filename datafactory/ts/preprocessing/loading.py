@@ -39,7 +39,7 @@ def split_df(df: pd.DataFrame, target_col=None):
     return X, y
     
 
-def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str], header='infer', sep: str=',', index_col=0, time_format: str=None, shuffle: bool=True, transform: List=None) -> Union[pd.DataFrame, List]:    
+def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str], header: str='infer', sep: str=',', index_col: Union[str, int]=0, time_format: str=None, shuffle: bool=True, transform: List=None) -> Union[pd.DataFrame, List]:    
     """Loads one or multiple datasets from the given file paths.
         
     Keyword arguments:
@@ -53,7 +53,7 @@ def load_dataset_from_file(data_type: str, file_path_or_buffer: Union[list,str],
     
     #TODO maybe method to automatically identify data_type
     if type(file_path_or_buffer) == str:
-        df = _read_file(data_type, i, header=header, sep=sep, index_col=index_col)
+        df = _read_file(data_type, file_path_or_buffer, header=header, sep=sep, index_col=index_col)
 
         if transform:
             df = apply_transforms(df, transform)
