@@ -3,6 +3,7 @@ import dash
 
 from dash import dcc, html
 from dash.dependencies import Input, Output
+import dash_interactive_graphviz
 
 # data process packages
 import copy
@@ -40,7 +41,8 @@ from ..preprocessing.cleaning import * # methods for data cleaning
 from ..preprocessing.sampling import * # mehtods for sampling
 from ..preprocessing.validating import * # methods for data checking
 from ..preprocessing.loading import *
-from ..plotting.model_plotting import * # plot method
+from ..preprocessing.model_comparison import basic_model_comparison
+from ..plotting.model_plotting import compute_fig_from_df, plot_feature_importance_of_random_forest, plot_decision_tree # plot method
 
 
 # plot tree
@@ -56,6 +58,8 @@ from matplotlib.colors import ListedColormap
 import warnings
 warnings.filterwarnings("ignore")
 
+sys.path.append('../../util')
+from ...util.constants import logger
 
 ## Setup dash
 app = dash.Dash(__name__)
@@ -64,7 +68,6 @@ app = dash.Dash(__name__)
 #### ATTENTION-IDEA: maybe, instead of the waterflow layout, use dash Tabs()+Tab() to create a better display
 
 def run_pipline(data_type: str, file_path: str, output_path='./report', model_type='C', sep=',', index_col: Union[str, int]=0, header: str='infer', target_col='target'):
-    
     # check dir existent
     if not os.path.isdir(output_path):
         os.mkdir(output_path)
@@ -201,13 +204,20 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
     
     if model_type == 'C':
         available_models = available_models_classification
-        
+        metrics = ['accuracy', 'average_precision', 'f1_weighted', 'roc_auc']
     elif model_type == 'R':
         available_models = available_models_regressor
-        
+        metrics = ['explained_variance', 'max_error', 'neg_mean_absolute_error','neg_mean_squared_error','r2']
     else:
         print(f'Unrecognized model_type {model_type}, use regression instead')
         available_models = available_models_regressor
+        
+    dat_comparison, dt = basic_model_comparison(dat, dat_y, available_models, metrics, model_type=model_type)
+    fig_comparison = compute_fig_from_df(model_type, dat_comparison, metrics)
+    dat_comparison.to_csv(output_path + '/performance_comparison.csv')
+    fig_comparison.write_image(output_path + '/plots/performance_comparison.webp')
+    dt_graph, dt_viz = plot_decision_tree(dt, dat, dat_y) 
+    dt_viz.save(output_path + "/plots/dt_visualization.svg")
     
     ## dash layout
     app.layout = html.Div([        
@@ -226,24 +236,24 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
         html.Hr(),
         
         # add data process report
-        html.H2(f"Process data"),
+        html.H2(f"Clean data"),
         add_processdata_information(output_path=output_path),
         html.Hr(),
         
         # add feature exploration information
         html.H2(f"Feature Exploration"),
         
-        html.H4(f"Feature Importance"),
-        html.P(f'The importance of the features is obtained from a random forest. It shows the importance of individual attributes for target prediction. Meaning of the value are still missing, More description needed~~~~~~~~'),
+        html.H4(f"Feature Importance", style={"text-decoration": "underline"}),
+        html.P(f'The importance of the features is obtained from a random forest. It shows the importance of individual attributes for target prediction. The importance of a feature is between [0, 1]. The higher the importance, the higher is the influence of the feature to the target prediction.'),
         add_feature_importance_information(fig_feature_importances, feature_importances, width = '600px', height = '400px'),
         
         # ERROR HERE
-        html.H4(f"Correlation between features"),
-        html.P(f'The heatmap shows the relationship between two features (includes the extended features) in the given dataset. The correlation value range in ***[-1, 1]***. The meaning of the value is shown below:'),
+        html.H4(f"Correlation between features", style={"text-decoration": "underline"}),
+        html.P(f'The heatmap shows the relationship between two features (includes the extended features) in the given dataset. The correlation value range in [-1, 1]. A negative correlation means that the relation ship between two features in which one variable increases as the other decreases. The meaning of the values is shown below:'),
         add_heatmap_information(fig_heatmap, tmp_heatmap),
-        html.Hr(),
         
-        html.H4(f"Scatter Between Two Features"),
+        html.H4(f"Scatter Between Two Features", style={"text-decoration": "underline"}),
+        html.P("This scatter plot displays the values of two features of the dataset. It can show the degree of the correlation between two features. If the points' pattern slopes from lower left to upper right, it indicates a positive correlation. If the pattern of points slopes from upper left to lower right, it indicates a negative correlation."),
         ####TODO!!!!: create function to select the interesting feature pair, otherwise, our customer have no idea which features should he pay attention to and why.
         dcc.Dropdown(
             id = "dropdown_scatter_features1",
@@ -261,7 +271,8 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
         ),
         dcc.Graph(id="figure_scatter_features"),
         
-        html.H4("Scatter Between Features and Target"),
+        html.H4("Scatter Between Features and Target", style={"text-decoration": "underline"}),
+        html.P("This scatter plot displays the values of a selected feature with the target."),
         dcc.Dropdown(
             id = "dropdown_scatter_target",
             options = [{'label': col, 'value': col} for col in dat.columns],
@@ -270,11 +281,9 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
             clearable = False,
         ),
         dcc.Graph(id="figure_scatter_target"),
-        ###TODO!!!!: add information about the explanation of the scatter plot, about how to read scatter plot
-        html.Hr(),
         
-        html.H4("Violin Distribution of the Important Features after Normalization"),
-        add_violin_information_of_important_features(tmp_dat),
+        html.H4("Violin Distribution of the Important Features after Normalization", style={"text-decoration": "underline"}),
+        html.P("This violin plot shows the probability density of the data at the selected features. It also contains a marker for the statistical metrics above."),
         dcc.Dropdown(
             id = "dropdown_violin_features",
             options = [{'label': col, 'value': col} for col in dat.columns],
@@ -283,8 +292,9 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
         ),
         dcc.Graph(id="figure_violin_features"),
         
-        html.H4("Class-based Violin Distribution of the Important Features"),
+        html.H4("Class-based Violin Distribution of the Important Features", style={"text-decoration": "underline"}),
         ###TODO!!!!: use distribution similarity to choose the interesting feature
+        html.P("This violin plot shows the probability density of the data at the important features."),
         dcc.Dropdown(
             id = "dropdown_class_based_violin_feature",
             options = [{'label': col, 'value': col} for col in dat.columns],
@@ -295,6 +305,7 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
         html.Hr(),
         
         html.H2("Comparison of Basic Models"),
+        html.P("Here we can see how the basic machine learning models peform on the task. Use the checkboxes to select the metric of the comparison."),
         ###TODO!!!!: add dropdown to select the target metric. maybe use checklist instead of dropdown
         dcc.Dropdown(
             id = "dropdown_basic_model_comparison",
@@ -304,7 +315,19 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
         ),
         dcc.Graph(id = "figure_basic_model_comparison"),
         html.Hr(),
+        
+        html.H2("Decision Tree Visualization"),
+        html.P("Here we can see the visualization of a decision tree."),
+        dash_interactive_graphviz.DashInteractiveGraphviz(id="dt_graph", dot_source=dt_graph)
     ])
+    
+    @app.callback(Output('table_corr_per', 'data'),
+                 [Input('dropdown_corr_per', 'value')])
+    def _update_table_corr(x):
+        """update correlation table: use heatmap"""
+        df_heatmap = tmp_heatmap.reset_index().melt(id_vars='index').query(f'(value >={int(x)/100})&(value<1)') 
+        out = df_heatmap.to_dict('records')
+        return out
     
     @app.callback(Output('figure_scatter_features', 'figure'), 
                   [Input('dropdown_scatter_features1', 'value'), Input('dropdown_scatter_features2', 'value')])
@@ -335,11 +358,8 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
     @app.callback(Output('figure_basic_model_comparison', 'figure'),
                  [Input('dropdown_basic_model_comparison', 'value')])
     def _update_basic_model_comparison(values):
-        ####TODO: this process maybe slow, maybe run all and saved locally instead
-        dat_comparison, fig_comparison = basic_model_comparison_classification(dat, dat_y, values)
-        
-        dat_comparison.to_csv(output_path + '/performance_comparison.csv')
-        fig_comparison.write_image(output_path + '/plots/performance_comparison.webp')
+        #print(dat_comparison)
+        print(fig_comparison)
         
         return fig_comparison
         
@@ -376,7 +396,7 @@ def add_title(data_type: str, file_path: str, output_path='./report/', model_typ
     
     return out
     
-def add_dataframe_table(df: pd.DataFrame, width: str='auto', height: str='auto'):
+def add_dataframe_table(df: pd.DataFrame, id=None, width: str='auto', height: str='auto'):
     """
     display a dataframe with dash
     =============
@@ -389,11 +409,18 @@ def add_dataframe_table(df: pd.DataFrame, width: str='auto', height: str='auto')
     height, type of str
         the height of the displayed table
     """
-    out = html.Div([        
-        dash.dash_table.DataTable(df.to_dict('records'),[{'name': i, 'id': i} for i in df.columns]),
-        
-    ],
-    style = {"overflow": "auto", "width": width, "height": height})
+    if id:
+        out = html.Div([        
+            dash.dash_table.DataTable(df.to_dict('records'),[{'name': i, 'id': i} for i in df.columns], id=id),
+
+        ],
+        style = {"overflow": "auto", "width": width, "height": height})
+    else:
+        out = html.Div([        
+            dash.dash_table.DataTable(df.to_dict('records'),[{'name': i, 'id': i} for i in df.columns]),
+
+        ],
+        style = {"overflow": "auto", "width": width, "height": height})
     return out
 
 def add_checkdata_information(output_path='./report'):
@@ -430,11 +457,42 @@ def add_feature_importance_information(fig, df: pd.DataFrame, width: str = '800p
     """
     out = html.Div([html.Div([dcc.Graph(id = 'feature importances', figure = fig, 
                                   style = {'overflow': 'auto', 'width': width, 'height': height}),
-                              add_dataframe_table(df, width = width, height=height)],
-                              style = {'columnCount': 2}),
-                    html.P(f'The above is the importance of the features obtained from the random forest, and it shows the importance of individual attributes for target prediction. Meaning of the value are still missing, More description needed~~~~~~~~')
+                              add_dataframe_table(df, width=width, height=height)],
+                              style = {'columnCount': 2})
                    ])
     
+    return out
+
+def _add_x_corr(df, x='100'):
+    if df.shape[0]==0:
+        return None
+     
+    df_heatmap = df.reset_index().melt(id_vars='index').query(f'(value >={int(x)/100})&(value<1)')
+        
+    ticks = np.arange(1, 100)
+        
+    out = html.Div([
+            html.Div([
+                html.P(f'Following feature pairs are over', style={'margin-right': '10px'}),
+                dcc.Dropdown(
+                    id="dropdown_corr_per",
+                    options=[{'label': x , 'value': x} for x in ticks],
+                    value = 80, 
+                    multi=False,
+                    style={
+                        'width':'40px',
+                        'height':'30px',
+                        'display':'inline-block',
+                        'margin-top':'3px',
+                        'verticalAlign':"middle"
+                    },
+                    clearable=False
+                ),
+                html.P(f'%'),
+                html.P(f'correlated:', style={'margin-left': '10px'}),
+            ], style=dict(display='flex')),
+            add_dataframe_table(df_heatmap, id='table_corr_per', width = '600px', height = '200px'),
+        ])
     return out
     
 def add_heatmap_information(fig, df: pd.DataFrame, width: str = '600px', height: str = '400px'):
@@ -445,31 +503,17 @@ def add_heatmap_information(fig, df: pd.DataFrame, width: str = '600px', height:
     df_meaning_heatmap = pd.DataFrame([['0.8-1.0', 'very strong'], ['0.6-0.8', 'strong'], ['0.4-0.6', 'middle'], ['0.2-0.4', 'weak'], ['0.0-0.2', 'very weak/no relation']], columns = ['Range (absolute)', 'Strongness of correlation'])
     
     # extract the strong and very strong correlation
-    tmp_10 = df.reset_index().melt(id_vars='index').query('value == 1').query('index != variable')
-    tmp_8_10 = df.reset_index().melt(id_vars='index').query('(value >=0.8)&(value<1)')
-    tmp_6_8 = df.reset_index().melt(id_vars='index').query('(value >=0.6)&(value<.8)')
-    tmps = []
-    
-    def _add_x_corr(df, x = '100'):
-        if df.shape[0]==0:
-            return None
-        
-        out = html.Div([
-            html.P(f'Following feature pairs are ***{x}%*** corelated:'),
-            add_dataframe_table(df, width = '600px', height = '200px'),
-        ])
-        
-        return out
+    #tmp_10 = df.reset_index().melt(id_vars='index').query('value == 1').query('index != variable')
+    #tmp_8_10 = df.reset_index().melt(id_vars='index').query('(value >=0.8)&(value<1)')
+    #tmp_6_8 = df.reset_index().melt(id_vars='index').query('(value >=0.6)&(value<.8)')
+    #tmps = []
     
     # plot
     out = html.Div([
               dcc.Graph(id = 'heatmap', figure = fig, style = {'width': width, 'height': height}),
         
-              html.Div([html.P(f'The heatmap shows the relationship between two features (includes the extended features) in the given dataset. The correlation value range in ***[-1, 1]***. The meaning of the value is shown below:'),
-                  add_dataframe_table(df_meaning_heatmap, width = '600px', height = '200px')]),
-              _add_x_corr(tmp_10, '100'),
-              _add_x_corr(tmp_8_10, '80'),
-              _add_x_corr(tmp_6_8, '60')
+              add_dataframe_table(df_meaning_heatmap, width = '600px', height = '200px'),
+              _add_x_corr(df, '80'),
     
           ], style = {'columnCount': 2})
     
@@ -551,4 +595,3 @@ def create_class_based_violin_information_of_important_features(df, col, df_y, l
         fig.write_image(output_path + '/plots/class_based_distribution/' + col.replace('/', '') + '.webp')
     
     return fig
-

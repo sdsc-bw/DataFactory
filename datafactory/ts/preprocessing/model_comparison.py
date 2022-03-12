@@ -5,6 +5,8 @@ All rights reserved.
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+import plotly.graph_objs as go
 
 from sklearn.model_selection import train_test_split
 
@@ -26,108 +28,84 @@ from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 import warnings
 warnings.filterwarnings("ignore")
 
-def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, models: list):
-  """
-  run selected models and return dataframe and comparison figure as result
-  """
-  # setting:
-  classifiers = [get_model_with_name_classification(i) for i in models]
+import sys
+sys.path.append('../../util')
+from ...util.constants import logger
 
-  #cla_metrics = ['accuracy', 'balanced_accuracy', 'top_k_accuracy', 'average_precision', 'f1_micro', 'f1_macro', 'f1_weighted', 'roc_auc']
-  cla_metrics = ['accuracy', 'average_precision', 'f1_weighted', 'roc_auc']
 
-  # classification
-  counter = 0
-  results = pd.DataFrame(columns = ['model', 'index', 'fit_time', 'test_accuracy', 'test_average_precision', 'test_f1_weighted', 'test_roc_auc'])
+def basic_model_comparison(dat: pd.DataFrame, dat_y: pd.Series, models: list, metrics, model_type='C'):
+    logger.info('Start computing basic models...')
+    if model_type == 'C':
+        return basic_model_comparison_classification(dat, dat_y, models, metrics)
+    elif model_type == 'R':
+        return basic_model_comparison_regression(dat, dat_y, models, metrics)
+    else:
+        logger.warn(f'Unrecognized model_type {model_type}, use regression instead')
+        return basic_model_comparison_regression(dat, dat_y, models, metrics)
+    logger.info('...End with computing basic models')
 
-  for classifier in tqdm(classifiers):
-    # train model
-    out = cross_validate(classifier, dat, dat_y, scoring = cla_metrics, return_estimator= True)
+def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, models: list, metrics: list):
+    """
+    run selected models and return dataframe and comparison figure as result
+    """
+    # setting:
+    classifiers = [get_model_with_name_classification(i['value']) for i in models]
 
-    # record result
-    for i in range(5):
-      for j in cla_metrics:
-        if str(out['estimator'][0]) == 'DummyClassifier()':
-          results.loc[counter, 'model']='baseline'
-        else:
-          results.loc[counter, 'model'] = str(out['estimator'][0])
-        results.loc[counter, 'index'] = i
-        results.loc[counter, 'fit_time'] = out['fit_time'].mean()
-        results.loc[counter, 'test_'+j] = out['test_'+j][i]
-      counter += 1
+    # classification
+    counter = 0
+    results = pd.DataFrame(columns = ['model', 'index', 'fit_time', 'test_accuracy', 'test_average_precision', 'test_f1_weighted', 'test_roc_auc'])
+
+    for classifier in tqdm(classifiers):
+        # train model
+        out = cross_validate(classifier, dat, dat_y, scoring = metrics, return_estimator= True)
+
+        # record result
+        for i in range(5):
+            for j in metrics:
+                if str(out['estimator'][0]).startswith('DecisionTreeClassifier'):
+                    dt = out['estimator'][0]
+                if str(out['estimator'][0]) == 'DummyClassifier()':
+                    results.loc[counter, 'model']='baseline'
+                else:
+                    results.loc[counter, 'model'] = str(out['estimator'][0])
+                results.loc[counter, 'index'] = i
+                results.loc[counter, 'fit_time'] = out['fit_time'].mean()
+                results.loc[counter, 'test_'+j] = out['test_'+j][i]
+            counter += 1
     
-  results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1)
+    results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1) 
 
-  mean_result = results.groupby('model').mean().sort_values('test_roc_auc')
-  std_result = results.groupby('model').std().loc[mean_result.index]
-
-  # plot
-  traces = []
-
-  for i in cla_metrics:
-    traces.append(go.Bar(
-        x = mean_result.index,#['model'],
-        y = mean_result['test_'+i],
-        error_y= dict(
-        type= 'data',
-        array= std_result['test_'+i],
-        visible= True
-        ),
-        name = i,
-        ))
-    
-  fig = go.Figure(traces)
-
-  return results, fig        
+    return results, dt    
         
-def basic_model_comparison_regression(dat: pd.DataFrame, dat_y: pd.Series, models: list):
-  # setting:
-  regressors = [get_model_with_name_regressor(i) for i in models]
-  reg_metrics = ['explained_variance', 'max_error', 'neg_mean_absolute_error','neg_mean_squared_error','r2']
+def basic_model_comparison_regression(dat: pd.DataFrame, dat_y: pd.Series, models: list, metrics: list):
+    # setting:
+    regressors = [get_model_with_name_regressor(i['value']) for i in models]
 
-  # classification
-  counter = 0
-  results = pd.DataFrame(columns = ['model', 'index', 'fit_time', 'test_explained_variance', 'test_max_error', 'test_neg_mean_absolute_error', 'test_neg_mean_squared_error', 'test_r2'])
+    # regression
+    counter = 0
+    results = pd.DataFrame(columns = ['model', 'index', 'fit_time', 'test_explained_variance', 'test_max_error', 'test_neg_mean_absolute_error', 'test_neg_mean_squared_error', 'test_r2'])
 
-  for regressor in tqdm(regressors):
-    # train model
-    out = cross_validate(regressor, dat, dat_y, scoring = reg_metrics, return_estimator= True)
+    for regressor in tqdm(regressors):
+        # train model
+        out = cross_validate(regressor, dat, dat_y, scoring = metrics, return_estimator= True)
 
-    # record result
-    for i in range(5):
-      for j in reg_metrics:
-        if str(out['estimator'][0]) == 'DummyRegressor()':
-          results.loc[counter, 'model']='baseline'
-        else:
-          results.loc[counter, 'model'] = str(out['estimator'][0])
-        results.loc[counter, 'index'] = i
-        results.loc[counter, 'fit_time'] = out['fit_time'].mean()
-        results.loc[counter, 'test_'+j] = out['test_'+j][i]
-      counter += 1
+        # record result
+        for i in range(5):
+            for j in metrics:
+                if str(out['estimator'][0]).startswith('DecisionTreeRegressor'):
+                    dt = out['estimator'][0]
+                if str(out['estimator'][0]) == 'DummyRegressor()':
+                    results.loc[counter, 'model']='baseline'
+                else:
+                    results.loc[counter, 'model'] = str(out['estimator'][0])
+                results.loc[counter, 'index'] = i
+                results.loc[counter, 'fit_time'] = out['fit_time'].mean()
+                results.loc[counter, 'test_'+j] = out['test_'+j][i]
+            counter += 1
 
-  results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1)
+    results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1)
 
-  mean_result = results.groupby('model').mean().sort_values('test_neg_mean_absolute_error')
-  std_result = results.groupby('model').std().sort_values('test_neg_mean_absolute_error').loc[mean_result.index]
-
-  # plot
-  traces = []
-
-  for i in reg_metrics:
-    traces.append(go.Bar(
-        x = mean_result.index,#['model'],
-        y = mean_result['test_'+i],
-        error_y= dict(
-        type= 'data',
-        array= std_result['test_'+i],
-        visible= True
-        ),
-        name = i,
-        ))
-    
-  fig = go.Figure(traces)
-
-  return results, fig   
+    return results, dt
 
 def get_model_with_name_classification(name:str):
     if name == 'baseline':
