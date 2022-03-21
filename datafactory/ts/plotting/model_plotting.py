@@ -110,7 +110,6 @@ def plot_decision_tree(dt, dat, dat_y):
                                   filled=True)
     # Draw graph
     graph = graphviz.Source(dot_data, format="svg").source
-    #graph.save('./test.png')
 
     # viz plot
     viz = dtreeviz(dt, dat, dat_y,
@@ -160,68 +159,8 @@ def plot_model_comparison(self, x_results: list , y_results: list, ptype: str='p
             os.mkdir(save_path)
         plt.savefig(save_path + '/' + '_'.join(cols) + '_' + str(id), transparent=True)
 
-def plot_feature_importance_of_random_forest(X: pd.DataFrame, y: pd.Series, art: str = 'C', strategy: str = 'mdi', file = None):
-    """
-    ================
-    Parameters:
-    ================
-    X, type of pd.DataFrame
-    y, type of pd.Series
-    art, type of str
-        the art of the task, classification or regression
-    strategy: type of str
-        the strategy used to calculate the feature importance. Two strategies are available [mdi (mean decrease in impurity), permutation]
-        default to use mdi
-    file, type of file
-        the target file to save the output
+def plot_feature_importance_of_random_forest(forest_importances):
 
-    ================
-    Output:
-    ================
-    fig， type of plotly object
-        the bar plot showing the feature importance
-    forest_importances, type of pd.Series
-        the index is the feature names and the value is the corresponding importance of the feature
-    """
-    if art == 'C':
-        forest = RandomForestClassifier(random_state=0)
-
-    elif art == 'R':
-        forest = RandomForestRegressor(random_state=0)
-
-    else:
-        print('Unrecognized art of task, use regression instead')
-        forest = RandomForestRegressor(random_state=0)
-
-    forest.fit(X, y)
-
-    # extract feature importance
-    if strategy == 'mdi':
-        start_time = time.time()
-        importances = forest.feature_importances_
-        std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
-        elapsed_time = time.time() - start_time
-
-    elif strategy == 'permutation':
-        start_time = time.time()
-        result = permutation_importance(
-            forest, dat, dat_y, n_repeats=10, random_state=42, n_jobs=2
-        )
-        importances = result.importances_mean
-
-        elapsed_time = time.time() - start_time
-
-    else:
-        print('Unrecognized given strategy, use mdi instead ')
-
-        start_time = time.time()
-        importances = forest.feature_importances_
-        std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
-        elapsed_time = time.time() - start_time
-
-    forest_importances = pd.Series(importances, index=X.columns).sort_values(ascending = False)
-
-    print(f"Elapsed time to compute the importances: {elapsed_time:.3f} seconds")
 
     # plot
     trace1 = go.Bar(
@@ -230,5 +169,5 @@ def plot_feature_importance_of_random_forest(X: pd.DataFrame, y: pd.Series, art:
         )
 
     data = [trace1]
-    fig = go.Figure(data = data)
-    return fig, forest_importances
+    fig = go.Figure(data=data)
+    return fig

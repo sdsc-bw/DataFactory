@@ -11,6 +11,7 @@ from ..preprocessing.outlier_detecting import outlier_detection_feature, outlier
 from ..preprocessing.cleaning import * # methods for data cleaning
 from ..preprocessing.validating import * # methods for data checking
 from ..preprocessing.model_comparison import basic_model_comparison
+from ..preprocessing.exploring import compute_feature_importance_of_random_forest
 from ..plotting.model_plotting import compute_fig_from_df, plot_feature_importance_of_random_forest, plot_decision_tree # plot method
 
 sys.path.append('../../util')
@@ -20,7 +21,7 @@ from ...util.constants import logger
 import dash
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
-#import dash_interactive_graphviz
+import dash_interactive_graphviz
 
 # plot packages
 import plotly.express as px
@@ -31,8 +32,9 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
 def run_pipline(data_type: str, file_path: str, output_path='./report', model_type='C', sep=',', index_col: Union[str, int]=0, header: str='infer', target_col='target'):
-    global FILE_PATH, MODEL_TYPE
+    global FILE_PATH, OUTPUT_PATH, MODEL_TYPE
     FILE_PATH = file_path
+    OUTPUT_PATH = output_path
     MODEL_TYPE = model_type
     
     # create directories for the report
@@ -48,17 +50,19 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
     _get_outlier(output_path, X)
     
     # feature distibution
-    violin_distribution = _get_violin_distribution(X)
-    _get_violin_distribution_fig(X, violin_distribution, output_path=output_path)
+    _get_violin_distribution(X, output_path=output_path)
     
     # correlation
     _get_corr_heatmap(output_path, X)
     
+    # feature importance
+    global FEATURE_IMPORTANCE
+    FEATURE_IMPORTANCE = _get_feature_importance(X, Y, model_type)
+    
     # decision tree and model comparison
     global AVAILABLE_MODELS, METRICS
     AVAILABLE_MODELS, METRICS = _get_available_models_and_metrics(model_type)
-    # TODO comment in
-    #_get_dt_and_model_comparison(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS)
+    _get_dt_and_model_comparison(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS)
     
     create_layout()
     
@@ -86,9 +90,9 @@ def _check_data(output_path, target_col, df, model_type):
     if df.shape[1] < 2:
         logger.warn(f'The number of features found in the dataset is {df.shape[2]}, it may due to the wrong setting of seperator, please rerun the programm and set the seperator with parameter \'sep=...\'')
         
-    global DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN
+    global DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING
     info_file = open(output_path + "/data_report.txt", "w")
-    DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, _, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
+    DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
     info_file.close()
     
     N_NUMERIC_NAN.to_csv(output_path + '/number_nan.csv')
@@ -112,9 +116,9 @@ def _check_data(output_path, target_col, df, model_type):
     DATA_CATEGORIC = categorical_feature_encoding(DATA_CATEGORIC, file = info_file)
     
     global X
-    X = pd.concat([DATA_NUMERIC, DATA_CATEGORIC], axis = 1)
+    X = pd.concat([DATA_NUMERIC, DATA_CATEGORIC], axis=1)
     global DF
-    DF = pd.concat([X, pd.DataFrame(Y, columns = ['target'])], axis = 1)
+    DF = pd.concat([X, pd.DataFrame(Y, columns = ['target'])], axis=1)
     
     logger.info(f'Shape of the dataframe after processing is ***{X.shape}***')
     
@@ -136,9 +140,6 @@ def _get_corr_heatmap(output_path, df):
     FIG_HEATMAP = px.imshow(DF_HEATMAP)
     FIG_HEATMAP.update_xaxes(side="bottom")
     FIG_HEATMAP.write_image(output_path + '/plots/correlation_heatmap.webp')
-    
-def _get_feature_importance():
-    pass
 
 def _get_available_models_and_metrics(model_type):
     available_models_classification = [{'label': 'Baseline', 'value': 'baseline'},
@@ -175,7 +176,8 @@ def _get_available_models_and_metrics(model_type):
         
     return available_models, metrics
 
-def _get_violin_distribution(df):
+def _get_violin_distribution(df, output_path=None):
+    # TODO move to df + split in computation and visualization
     tmp = (df-df.mean())/df.std()
     tmp2 = []
 
@@ -186,10 +188,8 @@ def _get_violin_distribution(df):
 
         tmp2.append(tmp3)
 
-    violin_distribution = pd.concat(tmp2, axis = 0)
-    return violin_distribution
+    violin_distribution = pd.concat(tmp2, axis=0)
     
-def _get_violin_distribution_fig(df, violin_distribution, output_path=None):
     fig = go.Figure()
     for i in df.columns:
         fig.add_trace(go.Violin(y=violin_distribution['value'][violin_distribution['fname'] == i], x= violin_distribution['fname'][violin_distribution['fname'] == i],
@@ -205,6 +205,34 @@ def _get_violin_distribution_fig(df, violin_distribution, output_path=None):
         
     return fig
 
+def _get_class_based_violin_distribution(X, y, col, le_name_mapping, output_path=None):
+    # TODO move to df + split in computation and visualization
+    inv_le_name_mapping = {}
+    for i, j in le_name_mapping.items():
+        inv_le_name_mapping[j] = i
+    fig = go.Figure()
+
+    for i in inv_le_name_mapping.keys():
+        fig.add_trace(go.Violin(y=X[col][y == i], 
+                                x= pd.Series(y[y == i]).map(lambda x: inv_le_name_mapping[x]),
+                                name = inv_le_name_mapping[i],
+                                box_visible=True, 
+                                points='all',
+                                #line_color='black',
+                                meanline_visible=True, 
+                                #fillcolor='lightseagreen', 
+                                #legendgroup='group',
+                                showlegend=True))
+
+    if output_path:
+        fig.write_image(output_path + '/plots/class_based_distribution/' + col.replace('/', '') + '.webp')
+    
+    return fig
+    
+def _get_feature_importance(X, y, model_type):
+    feature_importances = compute_feature_importance_of_random_forest(X, y, model_type=model_type)
+    return feature_importances
+    
 def _get_dt_and_model_comparison(output_path, X, y, model_type, available_models, metrics):
     global MODEL_COMPARISON, DT_GRAPH
     MODEL_COMPARISON, dt = basic_model_comparison(X, y, available_models, metrics, model_type=model_type)
@@ -212,8 +240,7 @@ def _get_dt_and_model_comparison(output_path, X, y, model_type, available_models
     MODEL_COMPARISON.to_csv(output_path + '/performance_comparison.csv')
     fig_comparison.write_image(output_path + '/plots/performance_comparison.webp')
     DT_GRAPH, dt_viz = plot_decision_tree(dt, X, y) 
-    # TODO comment in
-    #dt_viz.save(output_path + "/plots/dt_visualization.svg")
+    dt_viz.save(output_path + "/plots/dt_visualization.svg")
     
 ##################################### Layout ############################################
 def create_layout():
@@ -256,7 +283,7 @@ def _add_info_tab():
 def __add_task_tab():
     out = dcc.Tab(label='Task', children=[
         html.H4('Task'),
-        #TODO
+        #TODO add type of task, output_path, infow from data_report.txt
     ])
     
     return out
@@ -273,7 +300,7 @@ def __add_statistics_tab():
 def __add_outlier_tab():
     out = dcc.Tab(label='Outlier', children=[
         html.H4('Outlier'),
-        #TODO
+        #TODO add figure
     ])
     
     return out
@@ -281,7 +308,7 @@ def __add_outlier_tab():
 def __add_preprocessing_tab():
     out = dcc.Tab(label='Preprocessing', children=[
         html.H4('Preprocessing'),
-        #TODO
+        #TODO add infos from data_process.txt
     ])
     
     return out
@@ -322,11 +349,24 @@ def ___add_violin_distribution_important_features():
     return out
 
 def ___add_violin_distribution_class_based():
-    out = dcc.Tab(label='Class-based', children=[
-        html.H4('Class-based Violin Distribution'),
-        #TODO
-    ])
-    
+    if MODEL_TYPE == 'C':
+        out = dcc.Tab(label='Class-based', children=[
+            html.H4('Class-based Violin Distribution'),
+            html.P("This violin plot shows the probability density of every feature based on the classes.", className='par'),
+            html.Label('Feature:', className='dropdown_label'),
+            dcc.Dropdown(
+                id = "dropdown_class_based_violin_features",
+                options = [{'label': col, 'value': col} for col in X.columns],
+                value = X.columns[0],
+                multi = False,
+                clearable=False,
+                className='dropdown',
+                placeholder="Select a feature...",
+            ),
+            dcc.Graph(id="figure_class_based_violin_features"),
+        ])
+    else:
+        out = None
     return out
 
 def ___add_violin_distribution_custom():
@@ -364,6 +404,7 @@ def __add_heatmap_tab():
             dcc.Graph(id='heatmap', figure=FIG_HEATMAP, className='fig_with_description'),
             add_dataframe_table(df_meaning_heatmap, className='description'),
         ])
+        # TODO also add 'table_corr_per' from basic.tmp
     ])
     
     return out
@@ -466,17 +507,27 @@ def ___add_scatter_plot_custom():
 
 
 def _add_feature_importance_tab():
+    # TODO edit meaning
+    df_meaning_importance = pd.DataFrame([['0.8-1.0', 'very high'], ['0.6-0.8', 'high'], ['0.4-0.6', 'middle'], ['0.2-0.4', 'low'], ['0.0-0.2', 'very low']], columns=['Range (absolute)', 'importance'])
     out = dcc.Tab(label='Feature Importance', children=[
         html.H4('Feature Importance'),
-        #TODO
+        html.P(f'The importance of the features is obtained from a random forest. It shows the importance of individual attributes for target prediction. The importance of a feature is between [0, 1]. The higher the importance, the higher is the influence of the feature to the target prediction.', className='par'),
+        html.Div([
+            dcc.Graph(id='figure_feature_importance', figure=plot_feature_importance_of_random_forest(FEATURE_IMPORTANCE), className='fig_with_description'),
+            add_dataframe_table(df_meaning_importance, className='description'),
+        ])
     ])
     
     return out
 
 def _add_dt_tab():
+    # TODO do not allow scrolling with mouse (buttons instead) and change initial size (at the moment to large)
     out = dcc.Tab(label='Decision Tree', children=[
         html.H4('Visualization of a Decsion Tree'),
-        #TODO
+        dash_interactive_graphviz.DashInteractiveGraphviz(
+            id="graph",
+            dot_source=DT_GRAPH
+        )
     ])
     
     return out
@@ -524,18 +575,21 @@ def add_callbacks():
                  [Input('dropdown_violin_features', 'value')])
     def _update_violin_plot_features(values):
         df = X[values] # TODO also only use important features
-        violin_distribution = _get_violin_distribution(df)
-        out = _get_violin_distribution_fig(df, violin_distribution)
+        out = _get_violin_distribution(df)
+        return out
+    
+    @app.callback(Output('figure_class_based_violin_features', 'figure'),
+                 [Input('dropdown_class_based_violin_features', 'value')])
+    def _update_class_based_violin_plot_features(value):
+        # TODO also only use important features?
+        out = _get_class_based_violin_distribution(X, Y, value, LE_NAME_MAPPING, OUTPUT_PATH)
         return out
     
     @app.callback(Output('figure_violin_custom_features', 'figure'),
                  [Input('dropdown_violin_custom_features', 'value')])
     def _update_violin_plot_custom_features(values):
-        print(values)
         df = X[values]
-        violin_distribution = _get_violin_distribution(df)
-        print(violin_distribution)
-        out = _get_violin_distribution_fig(df, violin_distribution)
+        out = _get_violin_distribution(df)
         return out
     
     @app.callback(Output('figure_basic_model_comparison', 'figure'),
