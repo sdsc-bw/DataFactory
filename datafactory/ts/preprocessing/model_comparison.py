@@ -50,12 +50,13 @@ def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, m
     """
     # setting:
     classifiers = [get_model_with_name_classification(i['value']) for i in models]
+    values = [i['value'] for i in models]
 
     # classification
     counter = 0
-    results = pd.DataFrame(columns = ['model', 'index', 'fit_time', 'test_accuracy', 'test_average_precision', 'test_f1_weighted', 'test_roc_auc'])
+    results = pd.DataFrame(columns = ['model', 'index', 'fit_time', 'test_accuracy', 'test_average_precision', 'test_f1_weighted', 'test_roc_auc', 'value'])
 
-    for classifier in tqdm(classifiers):
+    for classifier, value in zip(tqdm(classifiers), values):
         # train model
         out = cross_validate(classifier, dat, dat_y, scoring = metrics, return_estimator= True)
 
@@ -69,17 +70,19 @@ def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, m
                 else:
                     results.loc[counter, 'model'] = str(out['estimator'][0])
                 results.loc[counter, 'index'] = i
+                results.loc[counter, 'value'] = value
                 results.loc[counter, 'fit_time'] = out['fit_time'].mean()
                 results.loc[counter, 'test_'+j] = out['test_'+j][i]
             counter += 1
     
-    results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1) 
+    #results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1) 
 
     return results, dt    
         
 def basic_model_comparison_regression(dat: pd.DataFrame, dat_y: pd.Series, models: list, metrics: list):
     # setting:
     regressors = [get_model_with_name_regressor(i['value']) for i in models]
+    values = [i['value'] for i in models]
 
     # regression
     counter = 0
@@ -99,11 +102,12 @@ def basic_model_comparison_regression(dat: pd.DataFrame, dat_y: pd.Series, model
                 else:
                     results.loc[counter, 'model'] = str(out['estimator'][0])
                 results.loc[counter, 'index'] = i
+                results.loc[counter, 'value'] = value
                 results.loc[counter, 'fit_time'] = out['fit_time'].mean()
                 results.loc[counter, 'test_'+j] = out['test_'+j][i]
             counter += 1
 
-    results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1)
+    #results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1)
 
     return results, dt
 

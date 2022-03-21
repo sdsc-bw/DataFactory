@@ -56,6 +56,7 @@ def compute_fig_from_df(model_type, result, metrics):
         return compute_fig_from_regression_df(result, metrics)
 
 def compute_fig_from_classification_df(result, metrics):
+    result = result.loc[:, result.columns != 'value']
     mean_result = result.groupby('model').mean().sort_values('test_roc_auc')
     std_result = result.groupby('model').std().loc[mean_result.index]
 
@@ -78,6 +79,7 @@ def compute_fig_from_classification_df(result, metrics):
     return fig      
 
 def compute_fig_from_regression_df(result, metrics):
+    result = result.loc[:, result.columns != 'value']
     mean_result = result.groupby('model').mean().sort_values('test_neg_mean_absolute_error')
     std_result = result.groupby('model').std().sort_values('test_neg_mean_absolute_error').loc[mean_result.index]
 
@@ -107,7 +109,7 @@ def plot_decision_tree(dt, dat, dat_y):
                                   class_names='target',
                                   filled=True)
     # Draw graph
-    graph = graphviz.Source(dot_data, format="json").source
+    graph = graphviz.Source(dot_data, format="svg").source
     #graph.save('./test.png')
 
     # viz plot
