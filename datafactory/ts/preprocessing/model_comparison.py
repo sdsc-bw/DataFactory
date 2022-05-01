@@ -48,6 +48,9 @@ def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, m
     """
     run selected models and return dataframe and comparison figure as result
     """
+    if type(dat_y) == np.ndarray:
+        dat_y = pd.Series(dat_y)
+        
     # setting:
     classifiers = [get_model_with_name_classification(i['value']) for i in models]
     values = [i['value'] for i in models]
@@ -76,19 +79,18 @@ def basic_model_comparison_classification(dat: pd.DataFrame, dat_y: pd.Series, m
             counter += 1
     
     #results = pd.concat([results.iloc[:,0], results.iloc[:, 1:].astype(float)], axis = 1) 
-
     return results, dt    
         
 def basic_model_comparison_regression(dat: pd.DataFrame, dat_y: pd.Series, models: list, metrics: list):
     # setting:
-    regressors = [get_model_with_name_regressor(i['value']) for i in models]
+    regressors = [get_model_with_name_regression(i['value']) for i in models]
     values = [i['value'] for i in models]
 
     # regression
     counter = 0
     results = pd.DataFrame(columns = ['model', 'index', 'fit_time', 'test_explained_variance', 'test_max_error', 'test_neg_mean_absolute_error', 'test_neg_mean_squared_error', 'test_r2'])
 
-    for regressor in tqdm(regressors):
+    for regressor, value in zip(tqdm(regressors), values):
         # train model
         out = cross_validate(regressor, dat, dat_y, scoring = metrics, return_estimator= True)
 
@@ -97,7 +99,7 @@ def basic_model_comparison_regression(dat: pd.DataFrame, dat_y: pd.Series, model
             for j in metrics:
                 if str(out['estimator'][0]).startswith('DecisionTreeRegressor'):
                     dt = out['estimator'][0]
-                if str(out['estimator'][0]) == 'DummyRegressor()':
+                if str(out['estimator'][0]) == 'DummyRegressor':
                     results.loc[counter, 'model']='baseline'
                 else:
                     results.loc[counter, 'model'] = str(out['estimator'][0])
