@@ -375,7 +375,7 @@ def ___add_violin_distribution_class_based():
     if MODEL_TYPE == 'C':
         out = dcc.Tab(label='Class-based', children=[
             html.H4('Class-based Violin Distribution'),
-            html.P("This violin plot shows the probability density of every feature based on the classes.", className='par'),
+            html.P("This violin plot shows the probability density of every feature based on the classes. These classes will be useful for classification tasks if the distribution of the same attributes varies widely across classes", className='par'),
             html.Label('Feature:', className='dropdown_label'),
             dcc.Dropdown(
                 id = "dropdown_class_based_violin_features",
