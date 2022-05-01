@@ -323,13 +323,21 @@ def _add_feature_distribution_tab():
     return out
 
 def __add_violin_distribution_tab():
-    out = dcc.Tab(label='Violin Distributions', children=[
-        dcc.Tabs([
-            ___add_violin_distribution_important_features(),
-            ___add_violin_distribution_class_based(),
-            ___add_violin_distribution_custom()
+    if MODEL_TYPE == 'C':
+        out = dcc.Tab(label='Violin Distributions', children=[
+            dcc.Tabs([
+                ___add_violin_distribution_important_features(),
+                ___add_violin_distribution_class_based(),
+                ___add_violin_distribution_custom()
+            ])
         ])
-    ])
+    else:
+        out = dcc.Tab(label='Violin Distributions', children=[
+            dcc.Tabs([
+                ___add_violin_distribution_important_features(),
+                ___add_violin_distribution_custom()
+            ])
+        ])
     
     return out
 
