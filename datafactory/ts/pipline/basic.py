@@ -314,14 +314,29 @@ def __add_preprocessing_tab():
     return out
 
 def _add_feature_distribution_tab():
-    out = dcc.Tab(label='Feature Distribution', children=[
-        dcc.Tabs([
-            __add_violin_distribution_tab()
+    if MODEL_TYPE == 'C':
+        out = dcc.Tab(label='Feature Distribution', children=[
+            dcc.Tabs([
+                __add_class_distribution_tab()
+                __add_violin_distribution_tab()
+            ])
         ])
-    ])
+    
+    else:
+        out = dcc.Tab(label='Feature Distribution', children=[
+            dcc.Tabs([
+                __add_violin_distribution_tab()
+            ])
+        ])
     
     return out
 
+def __add_class_distribution_tab():
+    out = dcc.Tab(label='Class distribution', children = [
+        html.H4('Target Classs distribution'),
+        html.P('This shows the proportion of the different classes in the total data. In principle, the more equal the proportion of different classes is, the better for the training of the model'),
+        dcc.Graph(id='class_distribution', value = plt.hist(Y))
+    ])
 def __add_violin_distribution_tab():
     if MODEL_TYPE == 'C':
         out = dcc.Tab(label='Violin Distributions', children=[
