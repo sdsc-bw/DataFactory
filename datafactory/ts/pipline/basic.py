@@ -10,7 +10,7 @@ from ..preprocessing.encoding import * # methods for encoding
 from ..preprocessing.outlier_detecting import outlier_detection_feature, outlier_detection_dataframe # methods for outlier detection
 from ..preprocessing.cleaning import * # methods for data cleaning
 from ..preprocessing.validating import * # methods for data checking
-from ..preprocessing.model_comparison import basic_model_comparison
+from ..preprocessing.model_comparison import basic_model_comparison, get_model_with_name_regression
 from ..preprocessing.exploring import compute_feature_importance_of_random_forest
 from ..plotting.model_plotting import compute_fig_from_df, plot_feature_importance_of_random_forest, plot_decision_tree # plot method
 
@@ -541,17 +541,38 @@ def _add_dt_tab():
     return out
 
 def _add_model_comparison_tab():
-    out = dcc.Tab(label='Model Comparison', children=[
-        html.H4('Performace Comparsion of Different Models'),
-        html.P("Here we can see how the basic machine learning models peform on the task.", className='par'),
-        dcc.Dropdown(
-            id = "dropdown_basic_model_comparison",
-            options = AVAILABLE_MODELS,
-            value = [model['value'] for model in AVAILABLE_MODELS],
-            multi = True
-        ),
-        dcc.Graph(id = "figure_basic_model_comparison"),
-    ])
+    if MODEL_TYPE == 'C': 
+        out = dcc.Tab(label='Model Comparison', children=[
+            html.H4('Performace Comparsion of Different Models'),
+            html.P("Here we can see how the basic machine learning models peform on the task.", className='par'),
+            dcc.Dropdown(
+                id = "dropdown_basic_model_comparison",
+                options = AVAILABLE_MODELS,
+                value = [model['value'] for model in AVAILABLE_MODELS],
+                multi = True
+            ),
+        ])
+    
+    else:
+        # plot scatter for regression task
+        out = dcc.Tab(label='Model Comparison', children=[
+            html.H4('Performace Comparsion of Different Models'),
+            html.P("Here we can see how the basic machine learning models peform on the task.", className='par'),
+            dcc.Dropdown(
+                id = "dropdown_basic_model_comparison",
+                options = AVAILABLE_MODELS,
+                value = [model['value'] for model in AVAILABLE_MODELS],
+                multi = True
+            ),
+            dcc.Graph(id = "figure_basic_model_comparison"),
+            dcc.Dropdown(
+                i = "dropdown_basic_model_scatter_plot",
+                options = AVAILABLE_MODELS,
+                value = [model['value'] for model in AVAILABLE_MODELS],
+                multi = False
+            ),
+            dcc.Graph(id = "figure_basic_model_scatter_plot"),
+        ])
     
     return out
 
@@ -607,6 +628,31 @@ def add_callbacks():
         fig_comparison = compute_fig_from_df(MODEL_TYPE, selected_model_comparison, METRICS)
         
         return fig_comparison
+    
+    @app.callback(Output('figure_basic_model_scatter_plot', 'figure'),
+                  [Input('dropdown_basic_model_scatter_plot', 'value')])
+    def _update_basic_model_scatter_plot:
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
+        regressor = DummyRegressor()
+        out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
+        pred_dummy = out['estimator'][0].predict(X_test)
+
+        regressor = get_model_with_name_regression(value)
+        out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
+        pred_rf = out['estimator'][0].predict(X_test)
+        
+        # convert prediction to pandas 
+        tmp_df = pd.DataFrame(np.array([Y_test, pred_rf]).transpose(), columns= ['baseline', 'prediction'])
+        tmp_df['model'] = 'random forest'
+
+        tmp_df2 = pd.DataFrame(np.array([Y_test, pred_dummy]).transpose(), columns= ['baseline', 'prediction'])
+        tmp_df2['model'] = 'dummy'
+
+        tmp = pd.concat([tmp_df, tmp_df2])
+        
+        fig = px.scatter(tmp, x='prediction', y='baseline', color= 'model', marginal_x="histogram", marginal_y="histogram")
+        
+        retur fig
 
 ######################### Helper #########################
 
