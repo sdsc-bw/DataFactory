@@ -160,7 +160,7 @@ def _get_available_models_and_metrics(model_type):
                                   {'label': 'SVR-Poly', 'value': 'svr-poly'},
                                   {'label': 'SVR-Sigmoid', 'value': 'svr-sigmoid'},
                                   {'label': 'GaussianProcess', 'value': 'gaussianprocess'},
-                                  {'label': 'GaussianProcess-dw', 'value': 'gaussianprocess-dw'},
+                                  #{'label': 'GaussianProcess-dw', 'value': 'gaussianprocess-dw'},
                                   {'label': 'DecisionTree', 'value': 'decisiontree'},
                                   {'label': 'RandomForest', 'value': 'randomforest'},
                                   {'label': 'MLP', 'value': 'mlp'},
