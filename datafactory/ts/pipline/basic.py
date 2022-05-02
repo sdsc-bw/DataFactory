@@ -19,6 +19,7 @@ from ...util.constants import logger
 
 # dash
 import dash
+import matplotlib.pyplot a plt
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import dash_interactive_graphviz
@@ -145,7 +146,7 @@ def _get_available_models_and_metrics(model_type):
     available_models_classification = [{'label': 'Baseline', 'value': 'baseline'},
                                        {'label': 'KNeighbors', 'value': 'knn'},
                                        {'label': 'SVC', 'value': 'svc'},
-                                       {'label': 'GaussianProcess', 'value': 'gaussianprocess'},
+                                       #{'label': 'GaussianProcess', 'value': 'gaussianprocess'},
                                        {'label': 'DecisionTree', 'value': 'decisiontree'},
                                        {'label': 'RandomForest', 'value': 'randomforest'},
                                        {'label': 'MLP', 'value': 'mlp'},
@@ -317,7 +318,7 @@ def _add_feature_distribution_tab():
     if MODEL_TYPE == 'C':
         out = dcc.Tab(label='Feature Distribution', children=[
             dcc.Tabs([
-                __add_class_distribution_tab()
+                __add_class_distribution_tab(),
                 __add_violin_distribution_tab()
             ])
         ])
@@ -646,13 +647,13 @@ def add_callbacks():
     
     @app.callback(Output('figure_basic_model_scatter_plot', 'figure'),
                   [Input('dropdown_basic_model_scatter_plot', 'value')])
-    def _update_basic_model_scatter_plot:
+    def _update_basic_model_scatter_plot():
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
         regressor = DummyRegressor()
         out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
         pred_dummy = out['estimator'][0].predict(X_test)
 
-        regressor = get_model_with_name_regression(value)
+        regressor = get_model_with_name_regression(value[0])
         out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
         pred_rf = out['estimator'][0].predict(X_test)
         
@@ -667,7 +668,7 @@ def add_callbacks():
         
         fig = px.scatter(tmp, x='prediction', y='baseline', color= 'model', marginal_x="histogram", marginal_y="histogram")
         
-        retur fig
+        return fig
 
 ######################### Helper #########################
 
