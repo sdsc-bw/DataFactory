@@ -1,4 +1,6 @@
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
+from sklearn.model_selection import train_test_split, cross_validate
+from sklearn.dummy import DummyRegressor
 
 import os
 
@@ -569,6 +571,7 @@ def _add_model_comparison_tab():
                 value = [model['value'] for model in AVAILABLE_MODELS],
                 multi = True
             ),
+            dcc.Graph(id = "figure_basic_model_comparison"),
         ])
     
     else:
@@ -584,9 +587,9 @@ def _add_model_comparison_tab():
             ),
             dcc.Graph(id = "figure_basic_model_comparison"),
             dcc.Dropdown(
-                i = "dropdown_basic_model_scatter_plot",
+                id = "dropdown_basic_model_scatter_plot",
                 options = AVAILABLE_MODELS,
-                value = [model['value'] for model in AVAILABLE_MODELS],
+                #value = [model['value'] for model in AVAILABLE_MODELS],
                 multi = False
             ),
             dcc.Graph(id = "figure_basic_model_scatter_plot"),
@@ -649,13 +652,13 @@ def add_callbacks():
     
     @app.callback(Output('figure_basic_model_scatter_plot', 'figure'),
                   [Input('dropdown_basic_model_scatter_plot', 'value')])
-    def _update_basic_model_scatter_plot():
+    def _update_basic_model_scatter_plot(value):
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
         regressor = DummyRegressor()
         out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
         pred_dummy = out['estimator'][0].predict(X_test)
 
-        regressor = get_model_with_name_regression(value[0])
+        regressor = get_model_with_name_regression(value)
         out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
         pred_rf = out['estimator'][0].predict(X_test)
         
