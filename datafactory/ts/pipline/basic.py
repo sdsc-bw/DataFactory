@@ -542,7 +542,7 @@ def _add_feature_importance_tab():
         html.P(f'The importance of the features is obtained from a random forest. It shows the importance of individual attributes for target prediction. The importance of a feature is between [0, 1]. The higher the importance, the higher is the influence of the feature to the target prediction.', className='par'),
         html.Div([
             dcc.Graph(id='figure_feature_importance', figure=plot_feature_importance_of_random_forest(FEATURE_IMPORTANCE), className='fig_with_description'),
-            add_dataframe_table(df_meaning_importance, className='description'),
+            #add_dataframe_table(df_meaning_importance, className='description'),
         ])
     ])
     
