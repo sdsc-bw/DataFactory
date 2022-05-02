@@ -163,6 +163,6 @@ def dt_transform(df: pd.DataFrame):
     if len(out) > 0:
         out = pd.concat(out, axis = 1)
     else:
-        out = pd.DataFrame(index = X.index)
+        out = pd.DataFrame(index = df.index)
         
     return out
