@@ -1,0 +1,43 @@
+.par {
+    margin-right: 20px;
+    margin-top: 20px;
+    margin-bottom: 30px;
+}
+
+.table {
+    overflow: auto;
+    width: auto;
+    height: auto;
+    margin-bottom: 30px;
+}
+
+.description {
+    overflow: auto;
+    width:25%;
+    height: 400px;
+    display: inline-block;
+    margin-left: 60px;
+}
+
+.fig_with_description {
+   width: 65%;
+   height: auto;
+   display: inline-block;
+   margin-right: 60px;
+   margin-left: -50px
+}
+
+.dropdown_with_label{
+   display: inline-block;
+   margin-right: 20px;
+}
+
+.dropdown {
+   width: 200px;
+   height: auto;
+   display: inline-block;
+}
+
+.dropdown_label {
+    display: inline-block;
+}
