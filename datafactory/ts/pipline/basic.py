@@ -34,7 +34,7 @@ import plotly.graph_objs as go
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
-def run_pipline(data_type: str, file_path: str, output_path='./report', model_type='C', sep=',', index_col: Union[str, int]=0, header: str='infer', target_col='target'):
+def run_pipline(data_type: str, file_path: str, output_path='./report', model_type='C', sep=',', index_col: Union[str, int]=0, header: str='infer', target_col='target', pred_period = 1):
     global FILE_PATH, OUTPUT_PATH, MODEL_TYPE
     FILE_PATH = file_path
     OUTPUT_PATH = output_path
@@ -45,10 +45,16 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
     
     # load dataset
     # TODO add other parameters
-    df = load_dataset_from_file(data_type, file_path, sep=sep, index_col=index_col)
+    df = load_dataset_from_dir(file_path, sep=sep, index_col=index_col, header = header)
     
     # basic information
-    _get_statistical_information(output_path, df)
+    _get_statistical_information(output_path, df) 
+    
+    # checking check_data file, 
+    # - no categorical data anymore
+    # - type of task includes: prediction, classification
+    # - prediction task should have a float parameter (timedelta/float/int) that contains how long to prediction
+    # - classification task should have a target column, in each timestamp should have a label
     _check_data(output_path, target_col, df, model_type)
     _get_outlier(output_path, X)
     
@@ -90,9 +96,6 @@ def _create_output_directory(output_path):
         os.mkdir(output_path + '/plots/class_based_distribution/')
         
 def _check_data(output_path, target_col, df, model_type):
-    if df.shape[1] < 2:
-        logger.warn(f'The number of features found in the dataset is {df.shape[2]}, it may due to the wrong setting of seperator, please rerun the programm and set the seperator with parameter \'sep=...\'')
-        
     global DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING
     info_file = open(output_path + "/data_report.txt", "w")
     DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
