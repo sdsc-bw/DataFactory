@@ -28,9 +28,15 @@ def valid_col(col: pd.Series) -> bool:
         return False
     return True
 
-def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col: Union[str, int]='target', file = None, logger = None):
+def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col: Union[str, int]='target', fillna = 'ffill', file = None, logger = None):
     """
-    check the quality of the given data
+    check the quality of the given data including:
+    - check target:
+        - existance
+        - na value
+    - check features:
+        - should no include categorical feature
+        
     if model_type == 'C', will do labelencoding first for the target column
     ================
     Parameters:
@@ -40,6 +46,8 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
         either C for classifcation of R for regression. indicates the type of problem 
     y - type of string
         the name of the target columns; if None, set the last columns of the data set as target
+    fillna - type of string
+        method to fill na value
     file - tyoe of file
         the file to output the analyse result
     logger - type of Logger
@@ -66,11 +74,11 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     #print('#'*30, file = file)
     if logger:
         logger.info('Start to check the given dataset...')
+    
+    if model_type == 'C':
+        assert(target_col is not None)
         
-    dat = dat.reset_index().iloc[:, 1:]
-
-    ## split features and target
-    if target_col:
+        ## split features and target
         # check if target_col exist
         while target_col not in dat.columns:
             target_col = input('Given target not found, please input the new target name: ')
@@ -78,22 +86,17 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
         # check na in target_col and drop na
         number_na_in_target = dat[target_col].isna().sum()
         if number_na_in_target > 0:
-            dat = dat[dat[target_col].isna().map(lambda x: not x)]
+            print(f'{number_na_in_target/dat.shape[0]} Na value existed in the target columns, fill na with {} method', file = file)
+            dat[target_col] = dat[target_col].fillna(method = fillna)
 
         dat_y = dat[target_col]
         cols = dat.columns.to_list()
         cols.remove(target_col)
         dat_x = dat[cols]
+        
     else:
-        print('No target name given, use the last column in the given dataset as target.')
-
-        # check na in target_col and drop na
-        number_na_in_target = dat.iloc[:, -1].isna().sum()
-        if number_na_in_target > 0:
-            dat = dat[dat.iloc[:, -1].isna().map(lambda x: not x)]
-
-        dat_y = dat[dat.columns[-1]]
-        dat_x = dat[dat.columns[:-1]]
+        # type regressor, should not include target column
+        dat_y = None
     
     ## basic report including following information in form of logger info (? print?):
     # - model_type of task C/R
@@ -103,19 +106,23 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     # - the type of target feature and number of different classes
     dat_category = dat_x.select_dtypes(include = ['object'])
     dat_numeric =  dat_x.select_dtypes(include=['float32', 'float64', 'int'])
+    
+    if data_category.shape[1] > 0:
+        print(f'category features identified in the given data, they are: {dat_category.columns[:5].to_list()} {"..." if len(dat_category.columns)>5 else "."} Please check the data again!', file = file)
+        raise raise AssertionError('categorical features included')
 
     print(f'#### basic information', file = file)
-    #print(f'The type of the task is:{bcolors.HEADER}{bcolors.BOLD}{"Classification" if model_type == "C" else "Regression"}{bcolors.ENDC}, with target feature: {bcolors.HEADER}{bcolors.BOLD}{target_col if target_col else dat.columns[-1]}{bcolors.ENDC}.', file = file)
-    print(f'The type of the task is: ***{"Classification" if model_type == "C" else "Regression"}***, with target feature: ***{target_col if target_col else dat.columns[-1]}***. \n', file = file)
+    print(f'The type of the task is: ***{"Classification" if model_type == "C" else "Regression"}***, with target feature: ***{target_col if target_col else None}***. \n', file = file)
     print(f'The given data include ***{dat.shape[1]}*** columns and ***{dat.shape[0]}*** rows: \n', file = file)
     print(f'- ***{len(dat_numeric.columns)}*** features are numeric: {dat_numeric.columns[:5].to_list()} {"..." if len(dat_numeric.columns)>5 else "."} \n', file = file)
-    print(f'- ***{len(dat_category.columns)}*** features are category: {dat_category.columns[:5].to_list()} {"..." if len(dat_category.columns)>5 else "."} \n', file = file)
+    #print(f'- ***{len(dat_category.columns)}*** features are category: {dat_category.columns[:5].to_list()} {"..." if len(dat_category.columns)>5 else "."} \n', file = file)
 
     flag_balance = False
     flag_wrong_target = False
 
     if model_type == 'C':
         print(f'- target value has ***{len(dat_y.unique())}*** different classed and is type of ***{"category" if dat_y.dtype == pd.CategoricalDtype else "numeric"}*** \n', file = file)
+        
 
         # collect the class information
         tmp = dat_y.value_counts()
@@ -132,24 +139,21 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
             flag_wrong_target = True
 
         # check balancy
-        if tmp.std()<100:
+        if tmp.std()<100: #
             flag_balance = True
       
         if flag_balance:
             print(f'\t The given dataset is balance: ***{cls}*** \n', file = file)
         else:
             print(f'\t The given dataset is unblance: ***{cls}*** \n', file = file)
+        
+        if flag_wrong_target:
+            print(f'\t The number of classes which item number smaller then 10 is larger {number_items_less_10}, the given target col {target_col} may be wrong', file = file)
 
     ## report basic flaws of the given data, which include following info:
     # - na and inf in the feature and target columns
     # - feature that contain only one value
     print(f'#### na/inf value', file = file)
-    # na, inf in y
-    dat_y = dat_y.replace(np.inf, np.nan)
-    print(f'There is in total ***{number_na_in_target}*** NA and Inf value found in the target column, corresponding items are deleted from the given dataset.', file = file)
-    dat_y = dat_y[dat_y.isna().map(lambda x: not x)]
-    dat_x = dat_x[dat_y.isna().map(lambda x: not x)]
-
     # na, inf in x
     dat_x = dat_x.replace(np.inf, np.nan)
     print(f'There is in total ***{dat_x.isna().sum().sum()}*** NA and Inf value found in the given features data.', file = file)
@@ -158,16 +162,12 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     print(dat_x.isna().sum().map(lambda x: str(x) + '/' + str(dat_x.shape[0])))
     dat_number_na = dat_x.isna().sum().map(lambda x: str(x) + '/' + str(dat_x.shape[0]))
     
-    # unique: numeric and cataegory
+    # unique: numeric 
     tmp = dat_numeric.std() == 1
-    unique_column_nemeric = tmp.index[tmp].to_list()
-    unique_column_category = []
+    unique_column_numeric = tmp.index[tmp].to_list()
 
-    for col in dat_category.columns:
-        tmp_col = dat_category[col]
-        if len(tmp_col.unique()) == 1:
-            unique_column_category.append(col)
-
+    if len(unique_column_numeric) > 0:
+        print(f'{len(unique_column_numeric)} features are has only single value, they are: {unique_column_numeric}', file = file)
     ## deal with the categoric target
     # 
     le_name_mapping = None
@@ -188,4 +188,4 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     if logger:
         logger.info('...finish with data check')
 
-    return dat_numeric, dat_category, dat_y, dat_number_na, le_name_mapping, flag_balance, flag_wrong_target
+    return dat_numeric, dat_y, dat_number_na, le_name_mapping, flag_balance, flag_wrong_target
