@@ -35,7 +35,7 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
 def run_pipline(data_type: str, file_path: str, output_path='./report', model_type='C', sep=',', index_col: Union[str, int]=0, header: str='infer', target_col='target', pred_period = 1):
-    global FILE_PATH, OUTPUT_PATH, MODEL_TYPE
+    global FILE_PATH, OUTPUT_PATH, MODEL_TYPE 
     FILE_PATH = file_path
     OUTPUT_PATH = output_path
     MODEL_TYPE = model_type
@@ -55,25 +55,39 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
     # - type of task includes: prediction, classification
     # - prediction task should have a float parameter (timedelta/float/int) that contains how long to prediction
     # - classification task should have a target column, in each timestamp should have a label
-    _check_data(output_path, target_col, df, model_type)
+    _check_data(output_path, target_col, df, model_type) # TODO!!! add input suggestion for rolling window size, besides, the fillna method using now are too naive (use ffill only). try to make difference between long sparse na value and condent na value. according to the first one to give the rolling size suggestion and according to the second one to think about clip some data from the original data (affected by rolling)
+    
     _get_outlier(output_path, X)
+    _generate_ts_feature(output_path, X) # TODO!!! the problem is, when the window size changed all the feature will be changed too, check the ratio of na value in each features, if the values of the features are all large, then rolling the window, maybe put this part to the model training part (affected by rolling)
     
     # feature distibution
     _get_violin_distribution(X, output_path=output_path)
+    _get_stationarity_test(X, output_path) # TODO!!! for each feature and return dataframe? (affected by rolling)
+    _get_target_decomposition(X, output_path) # TODO!!!
     
-    # correlation
-    _get_corr_heatmap(output_path, X)
+    # feature correlation
+    _get_corr_heatmap(output_path, X) # (affected by rolling)
+    _get_self_corr(output_path, X)  # TODO!!! for each feature? or target only (affected by rolling), and show the result in tab, can also use this function in layout directly, 
+    _get_PCMCI_analyse(output_path, X) # TODO!!! analyse the relationship between features? or (takes long, affected by rolling), can also use this function in layout directly
     
     # feature importance
+    # TODO!!! for classification task, may need the segmentation to generate training data and for regression task need the shift function to generate target.
+    _get_training_prepared(output_path, X, Y)
     global FEATURE_IMPORTANCE
-    FEATURE_IMPORTANCE = _get_feature_importance(X, Y, model_type)
+    FEATURE_IMPORTANCE = _get_feature_importance(X, Y, model_type) # TODO!!! use ML method to train model and get important
     
-    # decision tree and model comparison
+  
+    
     global AVAILABLE_MODELS, METRICS
+    # TODO!!! different from the db model buiding, here we should think about the train-test split method, since we use the history information in the prediction. the random split will make the data in training set similar with the one in test set. therfore, we need to add train-test split method here for the model buiding
     AVAILABLE_MODELS, METRICS = _get_available_models_and_metrics(model_type)
-    _get_dt_and_model_comparison(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS)
+    _get_dt_and_model_comparison_ML(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS) # TODO!!! use ML method to train model, lag parameter needed, and use tsfresh feature or self generated feature (affected by rolling)
+    _get_dt_and_model_comparison_DNN(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS) # TODO!!! use DNN method to train model (affected by rolling)
     
-    create_layout()
+    # result analyse
+    _get_model_analyse(output_path, X, Y) # TODO!!! add method to show the goodness of the trained model, maybe combine with the function above.
+    
+    create_layout()  # create tab to show feature trend TODO!!! for each feature with changable rolling window (affected by rolling)
     
     add_callbacks()
     
@@ -250,6 +264,9 @@ def _get_dt_and_model_comparison(output_path, X, y, model_type, available_models
     fig_comparison.write_image(output_path + '/plots/performance_comparison.webp')
     DT_GRAPH, dt_viz = plot_decision_tree(dt, X, y) 
     dt_viz.save(output_path + "/plots/dt_visualization.svg")
+
+def _get_trend_of_feature(output_path, X):
+    
     
 ##################################### Layout ############################################
 def create_layout():
@@ -257,8 +274,8 @@ def create_layout():
         _add_title(),
         dcc.Tabs([
             _add_info_tab(),
-            _add_feature_distribution_tab(),
-            _add_feature_correlation_tab(),
+            _add_feature_distribution_tab(), # the trend is added as a sub-tab in distribution tab, TODO !!!
+            _add_feature_correlation_tab(), # two more correlation sub-tabs are add here: self-reg and pcmci TODO !!!
             _add_feature_importance_tab(),
             _add_dt_tab(),
             _add_model_comparison_tab()
@@ -322,19 +339,26 @@ def __add_preprocessing_tab():
     
     return out
 
+
+############ feature distribution 
+
 def _add_feature_distribution_tab():
     if MODEL_TYPE == 'C':
         out = dcc.Tab(label='Feature Distribution', children=[
             dcc.Tabs([
                 __add_class_distribution_tab(),
-                __add_violin_distribution_tab()
+                __add_violin_distribution_tab(),
+                __add_trend_tab(), # the function to add trend tab TODO !!!!
+                __add_target_decomposition_tab(), # the function to add decomp tab TODO !!!!
             ])
         ])
     
     else:
         out = dcc.Tab(label='Feature Distribution', children=[
             dcc.Tabs([
-                __add_violin_distribution_tab()
+                __add_violin_distribution_tab(),
+                __add_trend_tab(), # too
+                __add_target_decomposition_tab(), # too
             ])
         ])
     
@@ -347,6 +371,27 @@ def __add_class_distribution_tab():
         dcc.Graph(id='class_distribution', value = px.histogram(x = Y))
     ])
     return out
+
+def __add_target_decomposition_tab(): # the new tab to show decomposition result, TODO !!!!!!!!
+    """
+    it may include:
+        - a title
+        - a graph to show trend
+        - a graph to show period
+        - a graph to show noise
+    """
+    pass
+
+def __add_trend_tab(): # the new tab to show trend, TODO !!!!!!!!
+    """
+    it may include:
+        - a title 
+        - a dropdown to select the features
+        - a dropdown to select the size of rolling window
+        - a dropdown to select the aggregation method:
+        - a graph to show trend
+    """
+    pass
 
 def __add_violin_distribution_tab():
     if MODEL_TYPE == 'C':
@@ -417,12 +462,17 @@ def ___add_violin_distribution_custom():
     ])
     
     return out
-    
+
+
+############# features correlation
+
 def _add_feature_correlation_tab():
     out = dcc.Tab(label='Feature Correlation', children=[
         dcc.Tabs([
             __add_heatmap_tab(),
             __add_scatter_plot_tab()
+            __add_self_regression_tab() # function to add self regression tab TODO!!!!!
+            __add_pcmci_tab() # function to add pcmci tab TODO!!!!!
         ])
     ])
     
@@ -443,6 +493,16 @@ def __add_heatmap_tab():
     
     return out
 
+def __add_pcmci_tab():  # tab to show the pcmci result TODO!!!!!
+    """
+    it may include:
+        - a title
+        - a dropdown to select the pcmci parameter, e.g., maximum number of lag
+        - a dropdown to select the roll window size, to recalculation time maybe long.....
+        - a graph to show the result
+    """
+    pass
+
 def __add_scatter_plot_tab():
     out = dcc.Tab(label='Scatter Plots', children=[
         dcc.Tabs([
@@ -454,6 +514,16 @@ def __add_scatter_plot_tab():
     ])
     
     return out
+
+def __add_self_regression_tab(): # the new tab to show self regression TODO!!!!
+    """
+    it may includes:
+        - a title
+        - a dropdown for feature selection
+        - a dropdown for roll window size ? 
+        - a graph to show the self regression result
+    """
+    pass
 
 def ___add_scatter_plot_important_features_tab():
     # TODO select important features instead of whole X
