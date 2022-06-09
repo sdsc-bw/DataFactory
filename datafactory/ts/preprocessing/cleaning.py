@@ -15,10 +15,11 @@ from ...util.constants import logger, bcolors
 
 def clean_data(data: pd.DataFrame, strategy: str='model', file = None) -> pd.DataFrame:
     """Clean dataset of INF- and NAN-values.
+    remove constant columns
     
     Keyword arguments:
     dat -- dataframe
-    strategy -- cleaning strategy, should be in ['model', 'mean', 'median', 'most_frequent', 'constant']
+    strategy -- cleaning strategy, should be in ['ffill', 'bfill', 'pad',]
     Output:
     data -- cleaned dataframe
     """
@@ -38,33 +39,39 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None) -> pd.Dat
     
     data = data.replace([np.inf, -np.inf], np.nan)
     
-    print(f'Remove columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=0.5].to_list()} \n', file = file)
-    data = data.dropna(axis=1, thresh=data.shape[0] * .5)
+    print(f'Check columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=0.5].to_list()} \n', file = file)
+    if data.columns[(data.isna().sum()/data.shape[0])>=0.5] > 0:
+        print('There exist columns with more then half of NAN-values, recoment to roll the original data, or delete the corrsponding feature.')
+        #data = data.dropna(axis=1, thresh=data.shape[0] * .5)
     
-    print(f'Remove constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()} \n', file = file)
-    data = data.loc[:, (data != data.iloc[0]).any()]
+    print(f'Check constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()} \n', file = file)
+    if data.columns[(data == data.iloc[0]).all()] > 0:
+        print('There exist columns with constant value, which will be removed from the feature set')
+        data = data.loc[:, (data != data.iloc[0]).any()]
 
     if data.isna().sum().sum() > 0:
         
-        if strategy == 'model':
-            
-            imp = IterativeImputer(max_iter=10, random_state=0)
-            
-        elif strategy in ['mean', 'median', 'most_frequent', 'constant']:
-            
-            imp = SimpleImputer(missing_values=np.nan, strategy=strategy)
-            
-        else:
-            
-            logger.warn(f'Unrecognized strategy {strategy}. Use mean instead')
-            
-        tmp = imp.fit_transform(data)
+        data = data.fillna(method = strategy)
         
-        if tmp.shape[1] != data.shape[1]:
-            logger.warn(f'Error appeared while fitting. Use constant filling instead')
-            tmp = data.fillna(0)
+#         if strategy == 'model':
             
-        data = pd.DataFrame(tmp, columns=data.columns, index=data.index)
+#             imp = IterativeImputer(max_iter=10, random_state=0)
+            
+#         elif strategy in ['mean', 'median', 'most_frequent', 'constant']:
+            
+#             imp = SimpleImputer(missing_values=np.nan, strategy=strategy)
+            
+#         else:
+            
+#             logger.warn(f'Unrecognized strategy {strategy}. Use mean instead')
+            
+#         tmp = imp.fit_transform(data)
+        
+#         if tmp.shape[1] != data.shape[1]:
+#             logger.warn(f'Error appeared while fitting. Use constant filling instead')
+#             tmp = data.fillna(0)
+            
+#         data = pd.DataFrame(tmp, columns=data.columns, index=data.index)
         
     #logger.info('Remove rows with any nan in the end')
     #data = data.dropna(axis=0, how='any')

@@ -33,7 +33,7 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     check the quality of the given data including:
     - check target:
         - existance
-        - na value
+        - na value, fill with ffill directly.
     - check features:
         - should no include categorical feature
         
@@ -86,7 +86,7 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
         # check na in target_col and drop na
         number_na_in_target = dat[target_col].isna().sum()
         if number_na_in_target > 0:
-            print(f'{number_na_in_target/dat.shape[0]} Na value existed in the target columns, fill na with {} method', file = file)
+            print(f'{number_na_in_target/dat.shape[0]} Na value existed in the target columns, fill na with {fillna} method', file = file)
             dat[target_col] = dat[target_col].fillna(method = fillna)
 
         dat_y = dat[target_col]

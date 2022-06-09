@@ -98,7 +98,7 @@ def _create_output_directory(output_path):
 def _check_data(output_path, target_col, df, model_type):
     global DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING
     info_file = open(output_path + "/data_report.txt", "w")
-    DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
+    DATA_NUMERIC, _, Y, N_NUMERIC_NAN, LE_NAME_MAPPING, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
     info_file.close()
     
     N_NUMERIC_NAN.to_csv(output_path + '/number_nan.csv')
@@ -119,12 +119,15 @@ def _check_data(output_path, target_col, df, model_type):
     info_file = open(output_path + "/data_process.txt", "w")
     DATA_NUMERIC = clean_data(DATA_NUMERIC, file = info_file)
     
-    DATA_CATEGORIC = categorical_feature_encoding(DATA_CATEGORIC, file = info_file)
+    #DATA_CATEGORIC = categorical_feature_encoding(DATA_CATEGORIC, file = info_file)
     
     global X
-    X = pd.concat([DATA_NUMERIC, DATA_CATEGORIC], axis=1)
+    #X = pd.concat([DATA_NUMERIC, DATA_CATEGORIC], axis=1)
+    X = Data_NUMERIC
+    
     global DF
-    DF = pd.concat([X, pd.DataFrame(Y, columns = ['target'])], axis=1)
+    if Y is not None: # y of the regression will be generated later
+        DF = pd.concat([X, pd.DataFrame(Y, columns = ['target'])], axis=1)
     
     logger.info(f'Shape of the dataframe after processing is ***{X.shape}***')
     
