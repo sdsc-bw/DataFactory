@@ -90,7 +90,7 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     if dat_categ_onehot.shape[1] > 0:
         print('Start to do the one-hot encoding for the following categoric features: '+ (str(dat_categ_onehot.columns.to_list()))+' \n', file = file)
         dat_categ_onehot = dat_categ_onehot.fillna('NULL')
-        dat_onehot = pd.DataFrame(oe.fit_transform(dat_categ_onehot.astype(str)).toarray(), 
+        dat_onehot = pd.DataFrame(oe.fit_transform(dat_categ_onehot.astype(str)).toarray(), index = X.index,
                                   columns=oe.get_feature_names(dat_categ_onehot.columns))
         #logger.info('...End with one-hot encoding')
         flag_onehot = True
@@ -103,7 +103,7 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     if dat_categ_label.shape[1] > 0:
         print('Start to do the label encoding for the following categoric features: %s' %(str(dat_categ_label.columns.to_list())) + ' \n', file = file)
         dat_categ_label = dat_categ_label.fillna('NULL')
-        dat_label = pd.DataFrame(columns=dat_categ_label.columns)
+        dat_label = pd.DataFrame(columns=dat_categ_label.columns, index = X.index)
         for i in dat_categ_label.columns:
             dat_label[i] = LabelEncoder().fit_transform(dat_categ_label[i].astype(str))
         flag_label = True
@@ -163,6 +163,6 @@ def dt_transform(df: pd.DataFrame):
     if len(out) > 0:
         out = pd.concat(out, axis = 1)
     else:
-        out = pd.DataFrame()
+        out = pd.DataFrame(index = df.index)
         
     return out

@@ -16,10 +16,11 @@ from ...util.constants import logger, bcolors
 
 def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_threshold=None, verbose=False) -> pd.DataFrame:
     """Clean dataset of INF- and NAN-values.
+    remove constant columns
     
     Keyword arguments:
     dat -- dataframe
-    strategy -- cleaning strategy, should be in ['model', 'mean', 'median', 'most_frequent', 'constant']
+    strategy -- cleaning strategy, should be in ['ffill', 'bfill', 'pad',]
     Output:
     data -- cleaned dataframe
     """
@@ -43,8 +44,10 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_thre
     print(f'Remove columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=0.5].to_list()} \n', file = file)
     data = data.dropna(axis=1, thresh=data.shape[0] * .5)
     
-    print(f'Remove constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()} \n', file = file)
-    data = data.loc[:, (data != data.iloc[0]).any()]
+    print(f'Check constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()} \n', file = file)
+    if data.columns[(data == data.iloc[0]).all()] > 0:
+        print('There exist columns with constant value, which will be removed from the feature set')
+        data = data.loc[:, (data != data.iloc[0]).any()]
 
     # TODO also add 'bfill', ...
     if data.isna().sum().sum() > 0:
@@ -64,7 +67,7 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_thre
             logger.warn(f'Error appeared while fitting. Use constant filling instead')
             tmp = data.fillna(0)
             
-        data = pd.DataFrame(tmp, columns=data.columns, index=data.index)
+#         data = pd.DataFrame(tmp, columns=data.columns, index=data.index)
         
     if corr_threshold:      
         data, _ = extract_large_correlation(data, threshold=corr_threshold, remove=False, verbose=verbose)    

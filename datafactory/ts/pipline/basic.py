@@ -4,6 +4,8 @@ All rights reserved.
 '''
 
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
+from sklearn.model_selection import train_test_split, cross_validate
+from sklearn.dummy import DummyRegressor
 
 import os
 
@@ -15,7 +17,6 @@ from ..preprocessing.encoding import * # methods for encoding
 from ..preprocessing.outlier_detecting import outlier_detection_feature, outlier_detection_dataframe # methods for outlier detection
 from ..preprocessing.cleaning import * # methods for data cleaning
 from ..preprocessing.validating import * # methods for data checking
-#from ..preprocessing.exploring import compute_feature_importance_of_random_forest
 from ..plotting.model_plotting import compute_fig_from_df, plot_feature_importance_of_random_forest, plot_decision_tree # plot method
 
 sys.path.append('../model_training')
@@ -26,6 +27,7 @@ from ...util.constants import logger
 
 # dash
 import dash
+import matplotlib.pyplot a plt
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import dash_interactive_graphviz
@@ -53,15 +55,27 @@ def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./rep
     df = load_dataset(data_type, file_path, is_file=is_file, sep=sep, index_col=index_col, time_col=time_col, time_format=time_format, sampling_rate=sampling_rate, header=header, query=query, shuffle=shuffle, agg=agg, index_start=index_start, index_end=index_end, pref=pref)
     
     # basic information
-    _get_statistical_information(output_path, df)
-    _check_data(output_path, target_col, df, model_type)
+    _get_statistical_information(output_path, df) 
+    
+    # checking check_data file, 
+    # - no categorical data anymore
+    # - type of task includes: prediction, classification
+    # - prediction task should have a float parameter (timedelta/float/int) that contains how long to prediction
+    # - classification task should have a target column, in each timestamp should have a label
+    _check_data(output_path, target_col, df, model_type) # TODO!!! add input suggestion for rolling window size, besides, the fillna method using now are too naive (use ffill only). try to make difference between long sparse na value and condent na value. according to the first one to give the rolling size suggestion and according to the second one to think about clip some data from the original data (affected by rolling)
+    
     _get_outlier(output_path, X)
+    _generate_ts_feature(output_path, X) # TODO!!! the problem is, when the window size changed all the feature will be changed too, check the ratio of na value in each features, if the values of the features are all large, then rolling the window, maybe put this part to the model training part (affected by rolling)
     
     # feature distibution
     _get_violin_distribution(X, output_path=output_path)
+    _get_stationarity_test(X, output_path) # TODO!!! for each feature and return dataframe? (affected by rolling)
+    _get_target_decomposition(X, output_path) # TODO!!!
     
-    # correlation
-    _get_corr_heatmap(output_path, X)
+    # feature correlation
+    _get_corr_heatmap(output_path, X) # (affected by rolling)
+    _get_self_corr(output_path, X)  # TODO!!! for each feature? or target only (affected by rolling), and show the result in tab, can also use this function in layout directly, 
+    _get_PCMCI_analyse(output_path, X) # TODO!!! analyse the relationship between features? or (takes long, affected by rolling), can also use this function in layout directly
     
     # preprocessing
     # TODO add preprocessing with feature_selection_strategy, transformations, 
@@ -78,6 +92,23 @@ def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./rep
     _get_model_comparison(output_path, X, Y, model_type, AVAILABLE_MODELS, SCORING, AVERAGE)
     
     if results_on_website: 
+    # TODO!!! for classification task, may need the segmentation to generate training data and for regression task need the shift function to generate target.
+#    _get_training_prepared(output_path, X, Y)
+#    global FEATURE_IMPORTANCE
+#    FEATURE_IMPORTANCE = _get_feature_importance(X, Y, model_type) # TODO!!! use ML method to train model and get important
+    
+  
+    
+#    global AVAILABLE_MODELS, METRICS
+    # TODO!!! different from the db model buiding, here we should think about the train-test split method, since we use the history information in the prediction. the random split will make the data in training set similar with the one in test set. therfore, we need to add train-test split method here for the model buiding
+#    AVAILABLE_MODELS, METRICS = _get_available_models_and_metrics(model_type)
+#    _get_dt_and_model_comparison_ML(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS) # TODO!!! use ML method to train model, lag parameter needed, and use tsfresh feature or self generated feature (affected by rolling)
+    _get_dt_and_model_comparison_DNN(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS) # TODO!!! use DNN method to train model (affected by rolling)
+    
+    # result analyse
+#    _get_model_analyse(output_path, X, Y) # TODO!!! add method to show the goodness of the trained model, maybe combine with the function above.
+    
+#    create_layout()  # create tab to show feature trend TODO!!! for each feature with changable rolling window (affected by rolling)
     
         create_layout()
     
@@ -105,12 +136,9 @@ def _create_output_directory(output_path):
         os.mkdir(output_path + '/datasets/')
         
 def _check_data(output_path, target_col, df, model_type):
-    if df.shape[1] < 2:
-        logger.warn(f'The number of features found in the dataset is {df.shape[2]}, it may due to the wrong setting of seperator, please rerun the programm and set the seperator with parameter \'sep=...\'')
-        
     global DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING
     info_file = open(output_path + "/data_report.txt", "w")
-    DATA_NUMERIC, DATA_CATEGORIC, Y, N_NUMERIC_NAN, LE_NAME_MAPPING, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
+    DATA_NUMERIC, _, Y, N_NUMERIC_NAN, LE_NAME_MAPPING, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
     info_file.close()
     
     N_NUMERIC_NAN.to_csv(output_path + '/number_nan.csv')
@@ -131,12 +159,15 @@ def _check_data(output_path, target_col, df, model_type):
     info_file = open(output_path + "/data_process.txt", "w")
     DATA_NUMERIC = clean_data(DATA_NUMERIC, file = info_file)
     
-    DATA_CATEGORIC = categorical_feature_encoding(DATA_CATEGORIC, file = info_file)
+    #DATA_CATEGORIC = categorical_feature_encoding(DATA_CATEGORIC, file = info_file)
     
     global X
-    X = pd.concat([DATA_NUMERIC, DATA_CATEGORIC], axis=1)
+    #X = pd.concat([DATA_NUMERIC, DATA_CATEGORIC], axis=1)
+    X = Data_NUMERIC
+    
     global DF
-    DF = pd.concat([X, pd.DataFrame(Y, columns = ['target'])], axis=1)
+    if Y is not None: # y of the regression will be generated later
+        DF = pd.concat([X, pd.DataFrame(Y, columns = ['target'])], axis=1)
     
     logger.info(f'Shape of the dataframe after processing is ***{X.shape}***')
     
@@ -296,6 +327,9 @@ def _get_model_comparison(output_path, X, y, model_type, available_models, scori
     fig_comparison = compute_fig_from_df(MODEL_COMPARISON)
     MODEL_COMPARISON.to_csv(output_path + '/performance_comparison.csv')
     fig_comparison.write_image(output_path + '/plots/performance_comparison.webp')
+
+#def _get_trend_of_feature(output_path, X):
+    
     
 ##################################### Layout ############################################
 def create_layout():
@@ -303,8 +337,8 @@ def create_layout():
         _add_title(),
         dcc.Tabs([
             _add_info_tab(),
-            _add_feature_distribution_tab(),
-            _add_feature_correlation_tab(),
+            _add_feature_distribution_tab(), # the trend is added as a sub-tab in distribution tab, TODO !!!
+            _add_feature_correlation_tab(), # two more correlation sub-tabs are add here: self-reg and pcmci TODO !!!
             #_add_feature_importance_tab(), TODO replace with LIME Explanation
             #_add_dt_tab(),
             _add_model_comparison_tab()
@@ -368,23 +402,76 @@ def __add_preprocessing_tab():
     
     return out
 
+
+############ feature distribution 
+
 def _add_feature_distribution_tab():
-    out = dcc.Tab(label='Feature Distribution', children=[
-        dcc.Tabs([
-            __add_violin_distribution_tab()
+    if MODEL_TYPE == 'C':
+        out = dcc.Tab(label='Feature Distribution', children=[
+            dcc.Tabs([
+                __add_class_distribution_tab(),
+                __add_violin_distribution_tab(),
+                __add_trend_tab(), # the function to add trend tab TODO !!!!
+                __add_target_decomposition_tab(), # the function to add decomp tab TODO !!!!
+            ])
         ])
-    ])
+    
+    else:
+        out = dcc.Tab(label='Feature Distribution', children=[
+            dcc.Tabs([
+                __add_violin_distribution_tab(),
+                __add_trend_tab(), # too
+                __add_target_decomposition_tab(), # too
+            ])
+        ])
     
     return out
 
-def __add_violin_distribution_tab():
-    out = dcc.Tab(label='Violin Distributions', children=[
-        dcc.Tabs([
-            ___add_violin_distribution_important_features(),
-            ___add_violin_distribution_class_based(),
-            ___add_violin_distribution_custom()
-        ])
+def __add_class_distribution_tab():
+    out = dcc.Tab(label='Class distribution', children = [
+        html.H4('Target Classs distribution'),
+        html.P('This shows the proportion of the different classes in the total data. In principle, the more equal the proportion of different classes is, the better for the training of the model'),
+        dcc.Graph(id='class_distribution', value = px.histogram(x = Y))
     ])
+    return out
+
+def __add_target_decomposition_tab(): # the new tab to show decomposition result, TODO !!!!!!!!
+    """
+    it may include:
+        - a title
+        - a graph to show trend
+        - a graph to show period
+        - a graph to show noise
+    """
+    pass
+
+def __add_trend_tab(): # the new tab to show trend, TODO !!!!!!!!
+    """
+    it may include:
+        - a title 
+        - a dropdown to select the features
+        - a dropdown to select the size of rolling window
+        - a dropdown to select the aggregation method:
+        - a graph to show trend
+    """
+    pass
+
+def __add_violin_distribution_tab():
+    if MODEL_TYPE == 'C':
+        out = dcc.Tab(label='Violin Distributions', children=[
+            dcc.Tabs([
+                ___add_violin_distribution_important_features(),
+                ___add_violin_distribution_class_based(),
+                ___add_violin_distribution_custom()
+            ])
+        ])
+    else:
+        out = dcc.Tab(label='Violin Distributions', children=[
+            dcc.Tabs([
+                ___add_violin_distribution_important_features(),
+                ___add_violin_distribution_custom()
+            ])
+        ])
     
     return out
 
@@ -407,7 +494,7 @@ def ___add_violin_distribution_class_based():
     if MODEL_TYPE == 'C':
         out = dcc.Tab(label='Class-based', children=[
             html.H4('Class-based Violin Distribution'),
-            html.P("This violin plot shows the probability density of every feature based on the classes.", className='par'),
+            html.P("This violin plot shows the probability density of every feature based on the classes. These classes will be useful for classification tasks if the distribution of the same attributes varies widely across classes", className='par'),
             html.Label('Feature:', className='dropdown_label'),
             dcc.Dropdown(
                 id = "dropdown_class_based_violin_features",
@@ -438,12 +525,17 @@ def ___add_violin_distribution_custom():
     ])
     
     return out
-    
+
+
+############# features correlation
+
 def _add_feature_correlation_tab():
     out = dcc.Tab(label='Feature Correlation', children=[
         dcc.Tabs([
             __add_heatmap_tab(),
             __add_scatter_plot_tab()
+            __add_self_regression_tab() # function to add self regression tab TODO!!!!!
+            __add_pcmci_tab() # function to add pcmci tab TODO!!!!!
         ])
     ])
     
@@ -464,6 +556,16 @@ def __add_heatmap_tab():
     
     return out
 
+def __add_pcmci_tab():  # tab to show the pcmci result TODO!!!!!
+    """
+    it may include:
+        - a title
+        - a dropdown to select the pcmci parameter, e.g., maximum number of lag
+        - a dropdown to select the roll window size, to recalculation time maybe long.....
+        - a graph to show the result
+    """
+    pass
+
 def __add_scatter_plot_tab():
     out = dcc.Tab(label='Scatter Plots', children=[
         dcc.Tabs([
@@ -475,6 +577,16 @@ def __add_scatter_plot_tab():
     ])
     
     return out
+
+def __add_self_regression_tab(): # the new tab to show self regression TODO!!!!
+    """
+    it may includes:
+        - a title
+        - a dropdown for feature selection
+        - a dropdown for roll window size ? 
+        - a graph to show the self regression result
+    """
+    pass
 
 def ___add_scatter_plot_important_features_tab():
     # TODO select important features instead of whole X
@@ -569,7 +681,7 @@ def _add_feature_importance_tab():
         html.P(f'The importance of the features is obtained from a random forest. It shows the importance of individual attributes for target prediction. The importance of a feature is between [0, 1]. The higher the importance, the higher is the influence of the feature to the target prediction.', className='par'),
         html.Div([
             dcc.Graph(id='figure_feature_importance', figure=plot_feature_importance_of_random_forest(FEATURE_IMPORTANCE), className='fig_with_description'),
-            add_dataframe_table(df_meaning_importance, className='description'),
+            #add_dataframe_table(df_meaning_importance, className='description'),
         ])
     ])
     
@@ -588,17 +700,39 @@ def _add_dt_tab():
     return out
 
 def _add_model_comparison_tab():
-    out = dcc.Tab(label='Model Comparison', children=[
-        html.H4('Performace Comparsion of Different Models'),
-        html.P("Here we can see how the basic machine learning models peform on the task.", className='par'),
-        dcc.Dropdown(
-            id = "dropdown_basic_model_comparison",
-            options = AVAILABLE_MODELS,
-            value = [model['value'] for model in AVAILABLE_MODELS],
-            multi = True
-        ),
-        dcc.Graph(id = "figure_basic_model_comparison"),
-    ])
+    if MODEL_TYPE == 'C': 
+        out = dcc.Tab(label='Model Comparison', children=[
+            html.H4('Performace Comparsion of Different Models'),
+            html.P("Here we can see how the basic machine learning models peform on the task.", className='par'),
+            dcc.Dropdown(
+                id = "dropdown_basic_model_comparison",
+                options = AVAILABLE_MODELS,
+                value = [model['value'] for model in AVAILABLE_MODELS],
+                multi = True
+            ),
+            dcc.Graph(id = "figure_basic_model_comparison"),
+        ])
+    
+    else:
+        # plot scatter for regression task
+        out = dcc.Tab(label='Model Comparison', children=[
+            html.H4('Performace Comparsion of Different Models'),
+            html.P("Here we can see how the basic machine learning models peform on the task.", className='par'),
+            dcc.Dropdown(
+                id = "dropdown_basic_model_comparison",
+                options = AVAILABLE_MODELS,
+                value = [model['value'] for model in AVAILABLE_MODELS],
+                multi = True
+            ),
+            dcc.Graph(id = "figure_basic_model_comparison"),
+            dcc.Dropdown(
+                id = "dropdown_basic_model_scatter_plot",
+                options = AVAILABLE_MODELS,
+                #value = [model['value'] for model in AVAILABLE_MODELS],
+                multi = False
+            ),
+            dcc.Graph(id = "figure_basic_model_scatter_plot"),
+        ])
     
     return out
 
@@ -648,6 +782,31 @@ def add_callbacks():
         fig_comparison = compute_fig_from_df(MODEL_COMPARISON)
         
         return fig_comparison
+    
+    @app.callback(Output('figure_basic_model_scatter_plot', 'figure'),
+                  [Input('dropdown_basic_model_scatter_plot', 'value')])
+    def _update_basic_model_scatter_plot(value):
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
+        regressor = DummyRegressor()
+        out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
+        pred_dummy = out['estimator'][0].predict(X_test)
+
+        regressor = get_model_with_name_regression(value)
+        out = cross_validate(regressor, X_train, Y_train, scoring = ['neg_mean_absolute_error'], return_estimator= True)
+        pred_rf = out['estimator'][0].predict(X_test)
+        
+        # convert prediction to pandas 
+        tmp_df = pd.DataFrame(np.array([Y_test, pred_rf]).transpose(), columns= ['baseline', 'prediction'])
+        tmp_df['model'] = 'random forest'
+
+        tmp_df2 = pd.DataFrame(np.array([Y_test, pred_dummy]).transpose(), columns= ['baseline', 'prediction'])
+        tmp_df2['model'] = 'dummy'
+
+        tmp = pd.concat([tmp_df, tmp_df2])
+        
+        fig = px.scatter(tmp, x='prediction', y='baseline', color= 'model', marginal_x="histogram", marginal_y="histogram")
+        
+        return fig
 
 ######################### Helper #########################
 
