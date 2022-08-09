@@ -5,7 +5,7 @@ All rights reserved.
 
 import pandas as pd
 import numpy as np
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, mean_absolute_error, mean_squared_error, r2_score, explained_variance_score, accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
@@ -17,6 +17,11 @@ F1_SCORING = ['f1', 'f1_binary', 'f1_micro', 'f1_weighted', 'f1_macro', 'f1_samp
 PRECISION_SCORING = ['precision', 'precision_binary', 'precision_micro', 'precision_weighted', 'precision_macro', 'precision_samples']
 RECALL_SCORING = ['recall', 'recall_binary', 'recall_micro', 'recall_weighted', 'recall_macro', 'recall_samples']
 ACCURACY_SCORING = ['accuracy']
+MAE_SCORING = ['mae']
+MSE_SCORING = ['mse']
+R2_SCORING = ['r2']
+EXPLAINED_VARIANCE_SCORING = ['explained_variance']
+
 
 def contvert_to_sklearn_metrics(metric: str):
     while True:
@@ -60,6 +65,8 @@ def get_metrics_fastai(metric: str, model_type: str, add_top_5_acc=False):
     else: 
         metrics_list.append(mse)
         metrics_list.append(mae)
+        metrics_list.append(ExplainedVariance())
+        metrics_list.append(R2Score())
     
     return metrics_list
 
@@ -77,6 +84,52 @@ def get_score(y_pred, y_test, model_type='C'):
         score = 1 - relative_absolute_error(y_pred, y_test)
     else:
         raise ValueError(f'Unknown type of model: {model}')
+        
+def evaluate_prediction(y, pred, metric):
+    if isinstance(y, pd.DataFrame) or isinstance(y, pd.Series):
+        y = y.to_numpy()
+        
+    results = {}
+    
+    for m in metric:
+        if m == 'explained_variance':
+            results['explained_variance'] = explained_variance_score(y, pred)
+        elif m == 'mae':
+            results['mae'] = mean_absolute_error(y, pred)
+        elif m == 'mse':
+            results['mse'] = mean_squared_error(y, pred)
+        elif m == 'f1':
+            results['f1_'] = f1_score(y, pred, average='weighted')
+        elif m == 'f1_weighted':
+            results['f1_weighted'] = f1_score(y, pred, average='weighted')
+        elif m == 'f1_micro':
+            results['f1_micro'] = f1_score(y, pred, average='micro')
+        elif m == 'f1_macro':
+            results['f1_macro'] = f1_score(y, pred, average='macro')
+        elif m == 'precision':
+            results['precision_'] = precision_score(y, pred, average='weighted')
+        elif m == 'precision_weighted':
+            results['precision_weighted'] = precision_score(y, pred, average='weighted')
+        elif m == 'precisionf1_micro':
+            results['precision_micro'] = precision_score(y, pred, average='micro')
+        elif m == 'precision_macro':
+            results['precision_macro'] = precision_score(y, pred, average='macro')
+        elif m == 'recall':
+            results['recall_'] = recall_score(y, pred, average='weighted')
+        elif m == 'recall_weighted':
+            results['recall_weighted'] = recall_score(y, pred, average='weighted')
+        elif m == 'recall_micro':
+            results['recall_micro'] = recall_score(y, pred, average='micro')
+        elif m == 'recall_macro':
+            results['recall_macro'] = recall_score(y, pred, average='macro')
+        elif m == 'r2':
+            results['r2'] = r2_score(y, pred)
+        elif m == 'accuracy':
+            results['accuracy'] = accuracy_score(y, pred)
+        else:
+            logger.warn(f'Unknown metric: {metric}. Skipping metric.')
+    
+    return results
         
 def evaluate(X: pd.DataFrame, y: pd.Series, cv: int=5, model_type: str='C') -> Tuple[float, float]:
     """Evaluates a dataset with random forests and f1-scores.

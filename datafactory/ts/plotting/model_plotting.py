@@ -7,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import time
+from typing import cast, Any, Dict, List, Tuple, Optional, Union
 
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
@@ -46,61 +47,45 @@ from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 import warnings
 warnings.filterwarnings("ignore")
 
-def compute_fig_from_df(model_type, result, metrics):
-    if model_type == 'C':
-        return compute_fig_from_classification_df(result, metrics)
-    elif model_type == 'R':
-        return compute_fig_from_regression_df(result, metrics)
-    else:
-        logger.warn(f'Unrecognized model_type {model_type}, use regression instead')
-        return compute_fig_from_regression_df(result, metrics)
+def plot_predictions(pred_train, pred_test, y):
+    fig = go.Figure()
+    x = list(range(len(y)))
+    x_test = list(range(len(pred_train), len(y)))
+    x_train = list(range(len(pred_train)))
+    
+    fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Tatsächlich'))
+    fig.add_trace(go.Scatter(x=x_train, y=pred_train, mode='lines', name='Trainings-Vorhersage'))
+    fig.add_trace(go.Scatter(x=x_test, y=pred_test, mode='lines', name='Test-Vorhersage'))
 
-def compute_fig_from_classification_df(result, metrics):
-    result = result.loc[:, result.columns != 'value']
-    mean_result = result.groupby('model').mean().sort_values('test_roc_auc')
+    return fig
+
+def compute_fig_from_df(result, metric=None):
+    if metric is None:
+        metric = list(result.columns)[1:]
+
+    if type(metric) != list:
+        metric = [metric]  
+    
+    mean_result = result.groupby('model').mean().sort_values(metric[0])
     std_result = result.groupby('model').std().loc[mean_result.index]
 
     # plot
     traces = []
 
-    for i in metrics:
+    for i in metric:
         traces.append(go.Bar(
-            x = mean_result.index,#['model'],
-            y = mean_result['test_'+i],
+            x = mean_result.index,
+            y = mean_result[i],
             error_y= dict(
             type= 'data',
-            array= std_result['test_'+i],
+            array= std_result[i],
             visible= True
             ),
             name = i,
             ))
     
     fig = go.Figure(traces)
-    return fig      
-
-def compute_fig_from_regression_df(result, metrics):
-    result = result.loc[:, result.columns != 'value']
-    mean_result = result.groupby('model').mean().sort_values('test_neg_mean_absolute_error')
-    std_result = result.groupby('model').std().sort_values('test_neg_mean_absolute_error').loc[mean_result.index]
-
-    # plot
-    traces = []
-
-    for i in metrics:
-        traces.append(go.Bar(
-            x = mean_result.index,#['model'],
-            y = mean_result['test_'+i],
-            error_y= dict(
-            type= 'data',
-            array= std_result['test_'+i],
-            visible= True
-            ),
-            name = i,
-            ))
-    
-    fig = go.Figure(traces)
-    
-    return fig
+    return fig 
 
 def plot_decision_tree(dt, dat, dat_y):
     # DOT data

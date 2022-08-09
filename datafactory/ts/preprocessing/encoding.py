@@ -35,21 +35,21 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
     if tmp_datetime.shape[1]>1:
         logger.warning('Two date columns exist, please check the given dataset')
         
-    if tmp_datetime.shape[1]>0:
-        print(f'***{tmp_datetime.shape[1]}*** Date feature(s) detected, extract feature from the date feature \n', file = file)
+#    if tmp_datetime.shape[1]>0:
+#        print(f'***{tmp_datetime.shape[1]}*** Date feature(s) detected, extract feature from the date feature \n', file = file)
         # drop date time column in the original dataframe
-        X = X.drop(tmp_datetime.columns, axis = 1)
+#        X = X.drop(tmp_datetime.columns, axis = 1)
         
         # extract information from the date
-        dat_datetime = []
-        for i in tmp_datetime.columns:
-            tmp = date_encoding(tmp_datetime[i])
-            tmp.columns = i+tmp.columns
-            dat_datetime.append(tmp)
+#        dat_datetime = []
+#        for i in tmp_datetime.columns:
+#            tmp = date_encoding(tmp_datetime[i])
+#            tmp.columns = i+tmp.columns
+#           dat_datetime.append(tmp)
             
-        dat_datetime = pd.concat(dat_datetime, axis = 1)
+#       dat_datetime = pd.concat(dat_datetime, axis = 1)
         
-        print(f'***{dat_datetime.shape[1]}*** date related features are added to the dataset \n', file = file)
+#       print(f'***{dat_datetime.shape[1]}*** date related features are added to the dataset \n', file = file)
         
     # labelencoding y if given
     if y is not None:
@@ -128,8 +128,8 @@ def categorical_feature_encoding(X: pd.DataFrame, y: pd.Series=None, k_term: boo
         dat_new = pd.concat([dat_new, dat_kterm], axis = 1)
     
     # combine date time result
-    if tmp_datetime.shape[1] >0:
-        dat_new = pd.concat([dat_datetime, dat_new], axis = 1)
+#  if tmp_datetime.shape[1] >0:
+#       dat_new = pd.concat([dat_datetime, dat_new], axis = 1)
         
     print(f'Shape of the given dataframe after encoding is: ***{dat_new.shape}*** \n', file = file)
     logger.info('...End with categorical feature transformation')

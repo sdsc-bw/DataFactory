@@ -8,6 +8,8 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+available_datatypes = ['csv', 'txt', 'xml', 'sqlite3']
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'

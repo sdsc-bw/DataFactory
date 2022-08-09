@@ -15,8 +15,10 @@ class GBDT(SklearnModel):
     def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict(), metric_average: str='micro'):
         super(GBDT, self).__init__(X, y, model_type, params)
         if self.model_type == 'C':
+            self.arch = HistGradientBoostingClassifier
             self.model = HistGradientBoostingClassifier(**params)
         elif self.model_type == 'R':
+            self.arch = HistGradientBoostingRegressor
             self.model = HistGradientBoostingRegressor(**params)
         else:
             logger.error('Unknown type of model')

@@ -1,3 +1,8 @@
+'''
+Copyright (c) Smart Data Solution Center Baden-Württemberg 2021,
+All rights reserved.
+'''
+
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 
 import os
@@ -10,9 +15,11 @@ from ..preprocessing.encoding import * # methods for encoding
 from ..preprocessing.outlier_detecting import outlier_detection_feature, outlier_detection_dataframe # methods for outlier detection
 from ..preprocessing.cleaning import * # methods for data cleaning
 from ..preprocessing.validating import * # methods for data checking
-from ..preprocessing.model_comparison import basic_model_comparison
-from ..preprocessing.exploring import compute_feature_importance_of_random_forest
+#from ..preprocessing.exploring import compute_feature_importance_of_random_forest
 from ..plotting.model_plotting import compute_fig_from_df, plot_feature_importance_of_random_forest, plot_decision_tree # plot method
+
+sys.path.append('../model_training')
+from ..model_training.basic_model_training import compare_models
 
 sys.path.append('../../util')
 from ...util.constants import logger
@@ -31,7 +38,7 @@ import plotly.graph_objs as go
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, external_stylesheets=external_stylesheets)
 
-def run_pipline(data_type: str, file_path: str, output_path='./report', model_type='C', sep=',', index_col: Union[str, int]=0, header: str='infer', target_col='target'):
+def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./report', model_type='C', sep=',', index_col: Union[str, int]=0, header: str='infer', target_col: str='target', time_col: Union[str, List]='Time', time_format=None, sampling_rate=timedelta(days=1), query: Union[list,str]="""select *""", feature_selection_strategy=None, transformations=None, results_on_website=True, shuffle: bool=False, agg: str=None, index_start=None, index_end=None, pref=None):
     global FILE_PATH, OUTPUT_PATH, MODEL_TYPE
     FILE_PATH = file_path
     OUTPUT_PATH = output_path
@@ -41,8 +48,9 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
     _create_output_directory(output_path)
     
     # load dataset
-    # TODO add other parameters
-    df = load_dataset_from_file(data_type, file_path, sep=sep, index_col=index_col)
+    # TODO also for multiple files, return 
+    # TODO add other parameters: time_col
+    df = load_dataset(data_type, file_path, is_file=is_file, sep=sep, index_col=index_col, time_col=time_col, time_format=time_format, sampling_rate=sampling_rate, header=header, query=query, shuffle=shuffle, agg=agg, index_start=index_start, index_end=index_end, pref=pref)
     
     # basic information
     _get_statistical_information(output_path, df)
@@ -55,20 +63,27 @@ def run_pipline(data_type: str, file_path: str, output_path='./report', model_ty
     # correlation
     _get_corr_heatmap(output_path, X)
     
+    # preprocessing
+    # TODO add preprocessing with feature_selection_strategy, transformations, 
+    # X, y = preprocessing(...)
+    
     # feature importance
-    global FEATURE_IMPORTANCE
-    FEATURE_IMPORTANCE = _get_feature_importance(X, Y, model_type)
+    # TODO replace with LIME explanations
+    #global FEATURE_IMPORTANCE
+    #FEATURE_IMPORTANCE = _get_feature_importance(X, Y, model_type)
     
     # decision tree and model comparison
-    global AVAILABLE_MODELS, METRICS
-    AVAILABLE_MODELS, METRICS = _get_available_models_and_metrics(model_type)
-    _get_dt_and_model_comparison(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS)
+    global AVAILABLE_MODELS, SCORING, AVERAGE
+    AVAILABLE_MODELS, SCORING, AVERAGE = _get_available_models_and_metrics(model_type)
+    _get_model_comparison(output_path, X, Y, model_type, AVAILABLE_MODELS, SCORING, AVERAGE)
     
-    create_layout()
+    if results_on_website: 
     
-    add_callbacks()
+        create_layout()
     
-    app.run_server()
+        add_callbacks()
+    
+        app.run_server()
     
 def _create_output_directory(output_path):
     if not os.path.isdir(output_path):
@@ -85,6 +100,9 @@ def _create_output_directory(output_path):
     
     if not os.path.isdir(output_path + '/plots/class_based_distribution/'):
         os.mkdir(output_path + '/plots/class_based_distribution/')
+        
+    if not os.path.isdir(output_path + '/datasets/'):
+        os.mkdir(output_path + '/datasets/')
         
 def _check_data(output_path, target_col, df, model_type):
     if df.shape[1] < 2:
@@ -142,39 +160,70 @@ def _get_corr_heatmap(output_path, df):
     FIG_HEATMAP.write_image(output_path + '/plots/correlation_heatmap.webp')
 
 def _get_available_models_and_metrics(model_type):
-    available_models_classification = [{'label': 'Baseline', 'value': 'baseline'},
-                                       {'label': 'KNeighbors', 'value': 'knn'},
-                                       {'label': 'SVC', 'value': 'svc'},
-                                       {'label': 'GaussianProcess', 'value': 'gaussianprocess'},
-                                       {'label': 'DecisionTree', 'value': 'decisiontree'},
-                                       {'label': 'RandomForest', 'value': 'randomforest'},
+    available_models_classification = [{'label': 'Baseline', 'value': 'baseline_ts'},
+                                       {'label': 'DecisionTree', 'value': 'decision_tree'},
+                                       {'label': 'RandomForest', 'value': 'random_forest'},
+                                       {'label': 'AdaBoost', 'value': 'ada_boost'},
+                                       {'label': 'SVM', 'value': 'svm'},
+                                       {'label': 'KNN', 'value': 'knn'},
+                                       {'label': 'GBDT', 'value': 'gbdt'},
+                                       {'label': 'GaussianNB', 'value': 'gaussian_nb'},
+                                       {'label': 'InceptionTime', 'value': 'inception_time'},
+                                       {'label': 'InceptionTimePlus', 'value': 'inception_time_plus'},
+                                       {'label': 'FCN', 'value': 'fcn'},
+                                       {'label': 'GRU', 'value': 'gru'},
+                                       {'label': 'GRUFCN', 'value': 'gru_fcn'},
+                                       {'label': 'LSTM', 'value': 'lstm'},
+                                       {'label': 'LSTMFCN', 'value': 'lstm_fcn'},
                                        {'label': 'MLP', 'value': 'mlp'},
-                                       {'label': 'AdaBoost', 'value': 'adabbost'},
-                                       {'label': 'GaussianNB', 'value': 'gaussian-nb'},
-                                       {'label': 'QuadraticDiscriminantAnalysis', 'value': 'qda'}]
+                                       {'label': 'MWDN', 'value': 'mwdn'},
+                                       {'label': 'OmniScale', 'value': 'omni_scale'},
+                                       {'label': 'ResCNN', 'value': 'res_cnn'},
+                                       {'label': 'ResNet', 'value': 'res_net'},
+                                       {'label': 'TabModel', 'value': 'tab_model'},
+                                       {'label': 'tcn', 'value': 'TCN'},
+                                       {'label': 'TST', 'value': 'tst'},
+                                       {'label': 'XceptionTime', 'value': 'xception_time'},
+                                       {'label': 'XCM', 'value': 'xcm'}]
     
-    available_models_regressor = [{'label': 'Baseline', 'value': 'baseline'},
-                                  {'label': 'Linear', 'value': 'linear'},
-                                  {'label': 'SVR', 'value': 'svr'},
-                                  {'label': 'SVR-Poly', 'value': 'svr-poly'},
-                                  {'label': 'SVR-Sigmoid', 'value': 'svr-sigmoid'},
-                                  {'label': 'GaussianProcess', 'value': 'gaussianprocess'},
-                                  {'label': 'GaussianProcess-dw', 'value': 'gaussianprocess-dw'},
-                                  {'label': 'DecisionTree', 'value': 'decisiontree'},
-                                  {'label': 'RandomForest', 'value': 'randomforest'},
-                                  {'label': 'MLP', 'value': 'mlp'},
-                                  {'label': 'AdaBoost', 'value': 'adaboost'}]
+    available_models_regression = [{'label': 'Baseline', 'value': 'baseline_ts'},
+                                       {'label': 'DecisionTree', 'value': 'decision_tree'},
+                                       {'label': 'RandomForest', 'value': 'random_forest'},
+                                       {'label': 'AdaBoost', 'value': 'ada_boost'},
+                                       {'label': 'SVM', 'value': 'svm'},
+                                       {'label': 'KNN', 'value': 'knn'},
+                                       {'label': 'GBDT', 'value': 'gbdt'},
+                                       {'label': 'BayesianRidge', 'value': 'bayesian_ridge'},
+                                       {'label': 'InceptionTime', 'value': 'inception_time'},
+                                       {'label': 'InceptionTimePlus', 'value': 'inception_time_plus'},
+                                       {'label': 'FCN', 'value': 'fcn'},
+                                       {'label': 'GRU', 'value': 'gru'},
+                                       {'label': 'GRUFCN', 'value': 'gru_fcn'},
+                                       {'label': 'LSTM', 'value': 'lstm'},
+                                       {'label': 'LSTMFCN', 'value': 'lstm_fcn'},
+                                       {'label': 'MLP', 'value': 'mlp'},
+                                       {'label': 'MWDN', 'value': 'mwdn'},
+                                       {'label': 'OmniScale', 'value': 'omni_scale'},
+                                       {'label': 'ResCNN', 'value': 'res_cnn'},
+                                       {'label': 'ResNet', 'value': 'res_net'},
+                                       {'label': 'TabModel', 'value': 'tab_model'},
+                                       {'label': 'tcn', 'value': 'TCN'},
+                                       {'label': 'TST', 'value': 'tst'},
+                                       {'label': 'XceptionTime', 'value': 'xception_time'},
+                                       {'label': 'XCM', 'value': 'xcm'}]
+    
+    average = ['binary', 'weighted', 'micro', 'macro', 'samples']
     
     if model_type == 'C':
         available_models = available_models_classification
-        metrics = ['accuracy', 'average_precision', 'f1_weighted', 'roc_auc']
+        scoring = ['accuracy', 'precision', 'f1', 'recall']
     elif model_type == 'R':
-        available_models = available_models_regressor
-        metrics = ['explained_variance', 'max_error', 'neg_mean_absolute_error','neg_mean_squared_error','r2']
+        available_models = available_models_regression
+        scoring = ['explained_variance','r2', 'mae', 'mse']
     else:
         available_models = available_models_regressor
         
-    return available_models, metrics
+    return available_models, scoring, average
 
 def _get_violin_distribution(df, output_path=None):
     # TODO move to df + split in computation and visualization
@@ -228,19 +277,25 @@ def _get_class_based_violin_distribution(X, y, col, le_name_mapping, output_path
         fig.write_image(output_path + '/plots/class_based_distribution/' + col.replace('/', '') + '.webp')
     
     return fig
+
+def _preprocessing(output_path, df, target_col, time_col, feature_selection_strategy=None, transformations=None):
+    # TODO add preprocessing steps
+    pass
+    # return X, y
     
-def _get_feature_importance(X, y, model_type):
-    feature_importances = compute_feature_importance_of_random_forest(X, y, model_type=model_type)
-    return feature_importances
+#def _get_feature_importance(X, y, model_type):
+#    feature_importances = compute_feature_importance_of_random_forest(X, y, model_type=model_type)
+#    return feature_importances
     
-def _get_dt_and_model_comparison(output_path, X, y, model_type, available_models, metrics):
+def _get_model_comparison(output_path, X, y, model_type, available_models, scoring, average):
     global MODEL_COMPARISON, DT_GRAPH
-    MODEL_COMPARISON, dt = basic_model_comparison(X, y, available_models, metrics, model_type=model_type)
-    fig_comparison = compute_fig_from_df(model_type, MODEL_COMPARISON, metrics)
+    available_models_list = [m['value'] for m in available_models]
+    # TODO select average by website
+    average = 'weighted'
+    MODEL_COMPARISON = compare_models(X, y, available_models_list, scoring=scoring, average=average, model_type=model_type)
+    fig_comparison = compute_fig_from_df(MODEL_COMPARISON)
     MODEL_COMPARISON.to_csv(output_path + '/performance_comparison.csv')
     fig_comparison.write_image(output_path + '/plots/performance_comparison.webp')
-    DT_GRAPH, dt_viz = plot_decision_tree(dt, X, y) 
-    dt_viz.save(output_path + "/plots/dt_visualization.svg")
     
 ##################################### Layout ############################################
 def create_layout():
@@ -250,8 +305,8 @@ def create_layout():
             _add_info_tab(),
             _add_feature_distribution_tab(),
             _add_feature_correlation_tab(),
-            _add_feature_importance_tab(),
-            _add_dt_tab(),
+            #_add_feature_importance_tab(), TODO replace with LIME Explanation
+            #_add_dt_tab(),
             _add_model_comparison_tab()
             
         ])
@@ -565,12 +620,6 @@ def add_callbacks():
         out = px.scatter(X, x=feature, y=Y, marginal_x='histogram', marginal_y='histogram')
         return out
     
-    @app.callback(Output('figure_scatter_custom_features', 'figure'), 
-                  [Input('dropdown_scatter_custom_features1', 'value'), Input('dropdown_scatter_custom_features2', 'value')])
-    def _update_scatter_plot_features(feature1, feature2):
-        out = px.scatter(DF, x=feature1, y=feature2, marginal_x="histogram", marginal_y="histogram")
-        return out
-    
     @app.callback(Output('figure_violin_features', 'figure'),
                  [Input('dropdown_violin_features', 'value')])
     def _update_violin_plot_features(values):
@@ -595,8 +644,8 @@ def add_callbacks():
     @app.callback(Output('figure_basic_model_comparison', 'figure'),
                  [Input('dropdown_basic_model_comparison', 'value')])
     def _update_basic_model_comparison(values):
-        selected_model_comparison = MODEL_COMPARISON.loc[MODEL_COMPARISON['value'].isin(values)]
-        fig_comparison = compute_fig_from_df(MODEL_TYPE, selected_model_comparison, METRICS)
+        # TODO filter for models in values
+        fig_comparison = compute_fig_from_df(MODEL_COMPARISON)
         
         return fig_comparison
 

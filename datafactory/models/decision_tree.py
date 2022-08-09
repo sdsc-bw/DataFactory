@@ -14,8 +14,10 @@ class DecisionTree(SklearnModel):
     def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
         super(DecisionTree, self).__init__(X, y, model_type, params)
         if self.model_type == 'C':
+            self.arch = DecisionTreeClassifier
             self.model = DecisionTreeClassifier(**params)
         elif self.model_type == 'R':
+            self.arch = DecisionTreeRegressor
             self.model = DecisionTreeRegressor(**params)
         else:
             logger.error('Unknown type of model')

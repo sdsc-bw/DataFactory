@@ -13,9 +13,11 @@ class SVM(SklearnModel):
     
     def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict()):
         super(SVM, self).__init__(X, y, model_type, params)
-        if self.mtype == 'C':
+        if self.model_type == 'C':
+            self.arch = SVC
             self.model = SVC(**params)
-        elif self.mtype == 'R':
+        elif self.model_type == 'R':
+            self.arch = SVR
             self.model = SVR(**params)
         else:
             logger.error('Unknown type of model')

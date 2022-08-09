@@ -1,7 +1,7 @@
 .par {
     margin-right: 20px;
     margin-top: 20px;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
 .table {
@@ -36,6 +36,7 @@
    width: 200px;
    height: auto;
    display: inline-block;
+   margin-bottom: 20px;
 }
 
 .dropdown_label {

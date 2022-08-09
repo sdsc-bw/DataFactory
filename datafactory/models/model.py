@@ -4,7 +4,7 @@ All rights reserved.
 '''
 
 from abc import ABCMeta, abstractmethod
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split, cross_val_score, TimeSeriesSplit
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.utils import shuffle
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
@@ -22,7 +22,7 @@ import copy
 
 sys.path.append('../util')
 from ..util.constants import logger
-from ..util.metrics import get_metrics_fastai, contvert_to_sklearn_metrics
+from ..util.metrics import *
 from ..util.optimizer import get_optimizer_fastai
 from ..util.loss import get_loss_fastai
 from ..util.transforms import get_transforms_cv, update_transforms, get_transforms_ts
@@ -37,20 +37,23 @@ class Model(metaclass=ABCMeta):
         self.id = ""
     
     @abstractmethod
-    def fit(self):
+    def fit(self, X, y):
         pass
     
     @abstractmethod
-    def cross_val_score(self, cv=5, scoring='f1_micro'):
-        pass
-    
-    @abstractmethod
-    def predict(self, y):
+    def predict(self, X):
         pass
     
     @abstractmethod
     def predict_probas(self, X):
         pass
+
+    def _reset_model(self):
+        pass
+    
+    @abstractmethod
+    def cross_val_score(self, cv=5, scoring='f1_micro'):
+        pass  
     
     def get_params(self):
         params = self.params.copy()
@@ -68,23 +71,44 @@ class SklearnModel(Model):
         super(SklearnModel, self).__init__(model_type)
         self.X = X
         self.y = y
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y)
         self.params = params
+        self.arch = None
         self.model = None
         
-    def fit(self):
-        model.fit(self.X_train, self.y_test)
+    def _reset_model(self):
+        self.model = self.arch(**self.params) 
 
     def cross_val_score(self, cv=5, scoring='f1_micro'):
-        scoring_temp = contvert_to_sklearn_metrics(scoring)
-        score = cross_val_score(self.model, self.X, self.y, cv=cv, scoring=scoring_temp)
-        if scoring == 'mse' or scoring == 'mae':
-            return -score
-        else:
-            return score
+        if type(scoring) != list:
+            scoring =  [scoring]
+        
+        tscv = TimeSeriesSplit(n_splits=cv)
+        scores = {}
+        for train_index, test_index in tscv.split(self.X):
+            self._reset_model()
+            X_train, X_test = self.X.iloc[train_index], self.X.iloc[test_index]
+            y_train, y_test = self.y.iloc[train_index], self.y.iloc[test_index]
+
+            self.model.fit(X_train, y_train)
+            pred = self.model.predict(X_test)
+            
+            tmp_scores = evaluate_prediction(y_test, pred, scoring)
+            for s in tmp_scores:
+                if not s in scores.keys():
+                    scores[s] = []
+                scores[s].append(tmp_scores[s])
+        self._reset_model() 
+        return scores
+    
+    def fit(self, X=None, y=None):
+        if X is None or y is None:
+            X, _, y, _ = train_test_split(self.X, self.y, shuffle=False)
+            
+        return self.model.fit(X, y)
     
     def predict(self, X: pd.Series):
-        return self.model.predict(X)
+        preds = self.model.predict(X)
+        return preds
     
     def predict_probas(self, X: pd.Series):
         return self.model.predict_probas(X)
@@ -128,14 +152,15 @@ class FastAIModel(Model):
         ############## process params #################
         
     @abstractmethod    
-    def _init_learner(self):
+    def _reset_model(self):
         pass
         
-    def fit(self):
+    def fit(self, X=None, y=None):
+        self._reset_model()
         self.learn.fit_one_cycle(self.epochs, lr_max=self.lr_max)
         
     @abstractmethod
-    def cross_val_score(self, cv=5, scoring='f1'):
+    def cross_val_score(self, cv=5, scoring='f1_micro'):
         pass
     
     @abstractmethod
@@ -179,7 +204,7 @@ class TsaiModel(FastAIModel):
         self.splits = TSSplitter(valid_size=0.2, show_plot=False)
         ############## process params #################
             
-    def _init_learner(self):
+    def _reset_model(self):
         if self.model_type == 'C':
             learner = TSClassifier
         elif self.model_type == 'R':
@@ -194,29 +219,69 @@ class TsaiModel(FastAIModel):
                              metrics=self.metrics, arch_config=self.params_arch, device=self.device)
                 
     def cross_val_score(self, cv=5, scoring='f1'):
-        scores = np.zeros(cv)
+        if type(scoring) != list:
+            scoring = [scoring]    
+        scores = {}
         for i in range(cv):
-            self._init_learner()
+            # TODO implement correct TS cross validation
+            self._reset_model()
             self.fit()
-            if scoring == 'accuracy':
-                scores[i] = self.learn.recorder.values[-1][2]
-            elif scoring.startswith('f1'):
-                scores[i] = self.learn.recorder.values[-1][3]
-            elif scoring.startswith('precision'):
-                scores[i] = self.learn.recorder.values[-1][4]
-            elif scoring.startswith('recall'):
-                scores[i] = self.learn.recorder.values[-1][5]
-            else:
-                logger.warn(f'Unknown scoring: {scoring}. Using f1 instead')
-                scores[i] = self.learn.recorder.values[-1][3]
             
+            # record scores
+            for s in scoring:
+                #assert False
+                if s in ACCURACY_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][2])
+                elif s in F1_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][3])
+                elif s in PRECISION_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][4])
+                elif s in RECALL_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][4])
+                elif s in MSE_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][2])
+                elif s in MAE_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][3])    
+                elif s in EXPLAINED_VARIANCE_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][4]) 
+                elif s in R2_SCORING:
+                    if not s in scores.keys():
+                        scores[s] = []
+                    scores[s].append(self.learn.recorder.values[-1][5]) 
+                else:
+                    if self.model_type == 'C':
+                        logger.warn(f'Unknown scoring: {s}. Using f1 instead')
+                        if not s in scores.keys():
+                            scores[s] = []
+                        scores[s].append(self.learn.recorder.values[-1][2])
+                    else:
+                        logger.warn(f'Unknown scoring: {s}. Using mse instead')
+                        if not s in scores.keys():
+                            scores[s] = []
+                        scores[s].append(self.learn.recorder.values[-1][2])    
         clear_output()
         return scores
     
     def predict(self, X: pd.Series):
         if X.ndim == 2:
-            X = self.X.reshape(X.shape[0], X.shape[1], 1)
+            X = X.reshape(X.shape[0], X.shape[1], 1)
         _, _, preds = self.learn.get_X_preds(X)
+        preds = np.asarray(preds)
+        preds = preds.reshape(-1)
         return preds
     
     def predict_probas(self, X: pd.Series):
@@ -264,7 +329,7 @@ class PytorchCVModel(FastAIModel):
     def _init_model(self):
         pass
 
-    def _init_learner(self, dataloader):
+    def _reset_model(self, dataloader):
         self._init_model()
         self.learn = Learner(dataloader, self.model, metrics=self.metrics, loss_func=self.loss, opt_func=self.optimizer)
         self.learn.model.to(self.device)
@@ -275,7 +340,7 @@ class PytorchCVModel(FastAIModel):
             train_dataset, test_dataset = torch.utils.data.random_split(self.dataset, [self.train_size, self.test_size], 
                                                                         generator=torch.Generator().manual_seed(i))
             dataloader = DataLoaders.from_dsets(train_dataset, test_dataset, num_workers=0, device=self.device)
-            self._init_learner(dataloader)
+            self._reset_model(dataloader)
             self.fit()
             if scoring == 'accuracy':
                 scores[i] = self.learn.recorder.values[-1][2]
