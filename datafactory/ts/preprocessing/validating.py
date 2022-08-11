@@ -96,6 +96,7 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
         
     else:
         # type regressor, should not include target column
+        dat_x = dat
         dat_y = None
     
     ## basic report including following information in form of logger info (? print?):
@@ -107,7 +108,7 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     dat_category = dat_x.select_dtypes(include = ['object'])
     dat_numeric =  dat_x.select_dtypes(include=['float32', 'float64', 'int'])
     
-    if data_category.shape[1] > 0:
+    if dat_category.shape[1] > 0:
         print(f'category features identified in the given data, they are: {dat_category.columns[:5].to_list()} {"..." if len(dat_category.columns)>5 else "."} Please check the data again!', file = file)
         raise AssertionError('categorical features included')
 
@@ -188,4 +189,4 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     if logger:
         logger.info('...finish with data check')
 
-    return dat_numeric, dat_y, dat_number_na, le_name_mapping, flag_balance, flag_wrong_target
+    return dat_numeric, dat_category, dat_y, dat_number_na, le_name_mapping, flag_balance, flag_wrong_target
