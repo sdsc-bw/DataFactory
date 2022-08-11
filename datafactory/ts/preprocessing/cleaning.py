@@ -165,14 +165,22 @@ def _check_existence(t: str, lis: list):
     return -1
 
 
-def convert_datetime_as_index(df, time_col: Union[str, Dict], time_format=None):
+def convert_datetime_as_index(df, time_col: Union[str, int, Dict], time_format=None):
     if type(time_col) == str:
         df.index  = pd.to_datetime(df[time_col], dayfirst=True, format=time_format)
         df = df.drop([time_col], axis=1)
-    else:
+    elif type(time_col) == Dict:
         #df[time_col['date']] = df[time_col['date']].dt.strftime('%d/%m/%Y')
         #print(df[time_col['date']])
         df.index  = pd.to_datetime(df[time_col['date']] + ' ' + df[time_col['time']], dayfirst=True, format=time_format)
         df = df.drop([time_col['date'], time_col['time']], axis=1)
+    
+    elif type(time_col) == int:
+        time_col = df.columns[time_col]
+        df.index  = pd.to_datetime(df[time_col], dayfirst=True, format=time_format)
+        df = df.drop([time_col], axis=1)
+    
+    else:
+        print('Unrecognized time column type')
         
     return df
