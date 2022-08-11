@@ -27,7 +27,7 @@ from ...util.constants import logger
 
 # dash
 import dash
-import matplotlib.pyplot a plt
+import matplotlib.pyplot as plt
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import dash_interactive_graphviz
