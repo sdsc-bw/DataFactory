@@ -65,17 +65,17 @@ def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./rep
     _check_data(output_path, target_col, df, model_type) # TODO!!! add input suggestion for rolling window size, besides, the fillna method using now are too naive (use ffill only). try to make difference between long sparse na value and condent na value. according to the first one to give the rolling size suggestion and according to the second one to think about clip some data from the original data (affected by rolling)
     
     _get_outlier(output_path, X)
-    _generate_ts_feature(output_path, X) # TODO!!! the problem is, when the window size changed all the feature will be changed too, check the ratio of na value in each features, if the values of the features are all large, then rolling the window, maybe put this part to the model training part (affected by rolling)
+    #_generate_ts_feature(output_path, X) # TODO!!! the problem is, when the window size changed all the feature will be changed too, check the ratio of na value in each features, if the values of the features are all large, then rolling the window, maybe put this part to the model training part (affected by rolling)
     
     # feature distibution
     _get_violin_distribution(X, output_path=output_path)
-    _get_stationarity_test(X, output_path) # TODO!!! for each feature and return dataframe? (affected by rolling)
-    _get_target_decomposition(X, output_path) # TODO!!!
+    #_get_stationarity_test(X, output_path) # TODO!!! for each feature and return dataframe? (affected by rolling)
+    #_get_target_decomposition(X, output_path) # TODO!!!
     
     # feature correlation
     _get_corr_heatmap(output_path, X) # (affected by rolling)
-    _get_self_corr(output_path, X)  # TODO!!! for each feature? or target only (affected by rolling), and show the result in tab, can also use this function in layout directly, 
-    _get_PCMCI_analyse(output_path, X) # TODO!!! analyse the relationship between features? or (takes long, affected by rolling), can also use this function in layout directly
+    #_get_self_corr(output_path, X)  # TODO!!! for each feature? or target only (affected by rolling), and show the result in tab, can also use this function in layout directly, 
+    #_get_PCMCI_analyse(output_path, X) # TODO!!! analyse the relationship between features? or (takes long, affected by rolling), can also use this function in layout directly
     
     # preprocessing
     # TODO add preprocessing with feature_selection_strategy, transformations, 
@@ -163,7 +163,7 @@ def _check_data(output_path, target_col, df, model_type):
     
     global X
     #X = pd.concat([DATA_NUMERIC, DATA_CATEGORIC], axis=1)
-    X = Data_NUMERIC
+    X = DATA_NUMERIC
     
     global DF
     if Y is not None: # y of the regression will be generated later
