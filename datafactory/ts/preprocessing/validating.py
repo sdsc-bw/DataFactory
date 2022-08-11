@@ -109,7 +109,7 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     
     if data_category.shape[1] > 0:
         print(f'category features identified in the given data, they are: {dat_category.columns[:5].to_list()} {"..." if len(dat_category.columns)>5 else "."} Please check the data again!', file = file)
-        raise raise AssertionError('categorical features included')
+        raise AssertionError('categorical features included')
 
     print(f'#### basic information', file = file)
     print(f'The type of the task is: ***{"Classification" if model_type == "C" else "Regression"}***, with target feature: ***{target_col if target_col else None}***. \n', file = file)

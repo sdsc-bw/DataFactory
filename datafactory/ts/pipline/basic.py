@@ -27,7 +27,7 @@ from ...util.constants import logger
 
 # dash
 import dash
-import matplotlib.pyplot a plt
+import matplotlib.pyplot as plt
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import dash_interactive_graphviz
@@ -91,7 +91,7 @@ def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./rep
     AVAILABLE_MODELS, SCORING, AVERAGE = _get_available_models_and_metrics(model_type)
     _get_model_comparison(output_path, X, Y, model_type, AVAILABLE_MODELS, SCORING, AVERAGE)
     
-    if results_on_website: 
+    # if results_on_website: 
     # TODO!!! for classification task, may need the segmentation to generate training data and for regression task need the shift function to generate target.
 #    _get_training_prepared(output_path, X, Y)
 #    global FEATURE_IMPORTANCE
@@ -110,11 +110,11 @@ def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./rep
     
 #    create_layout()  # create tab to show feature trend TODO!!! for each feature with changable rolling window (affected by rolling)
     
-        create_layout()
-    
-        add_callbacks()
-    
-        app.run_server()
+    create_layout()
+
+    add_callbacks()
+
+    app.run_server()
     
 def _create_output_directory(output_path):
     if not os.path.isdir(output_path):
@@ -533,8 +533,8 @@ def _add_feature_correlation_tab():
     out = dcc.Tab(label='Feature Correlation', children=[
         dcc.Tabs([
             __add_heatmap_tab(),
-            __add_scatter_plot_tab()
-            __add_self_regression_tab() # function to add self regression tab TODO!!!!!
+            __add_scatter_plot_tab(),
+            __add_self_regression_tab(), # function to add self regression tab TODO!!!!!
             __add_pcmci_tab() # function to add pcmci tab TODO!!!!!
         ])
     ])
