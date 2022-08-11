@@ -75,7 +75,7 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
     if logger:
         logger.info('Start to check the given dataset...')
     
-    if model_type == 'C':
+    if model_type == 'C' or model_type == 'R':
         assert(target_col is not None)
         
         ## split features and target
@@ -94,10 +94,13 @@ def check_data_and_distribute(dat: pd.DataFrame, model_type: str='R', target_col
         cols.remove(target_col)
         dat_x = dat[cols]
         
-    else:
+    elif model_type == 'forecasting':
         # type regressor, should not include target column
         dat_x = dat
-        dat_y = None
+        dat_y = None # TODO!!! generate dat_y
+    
+    else:
+        print(f'Unrecognized model type {model_type}')
     
     ## basic report including following information in form of logger info (? print?):
     # - model_type of task C/R
