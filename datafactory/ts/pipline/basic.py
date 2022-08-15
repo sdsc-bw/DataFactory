@@ -103,7 +103,7 @@ def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./rep
     # TODO!!! different from the db model buiding, here we should think about the train-test split method, since we use the history information in the prediction. the random split will make the data in training set similar with the one in test set. therfore, we need to add train-test split method here for the model buiding
 #    AVAILABLE_MODELS, METRICS = _get_available_models_and_metrics(model_type)
 #    _get_dt_and_model_comparison_ML(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS) # TODO!!! use ML method to train model, lag parameter needed, and use tsfresh feature or self generated feature (affected by rolling)
-    _get_dt_and_model_comparison_DNN(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS) # TODO!!! use DNN method to train model (affected by rolling)
+#    _get_dt_and_model_comparison_DNN(output_path, X, Y, model_type, AVAILABLE_MODELS, METRICS) # TODO!!! use DNN method to train model (affected by rolling)
     
     # result analyse
 #    _get_model_analyse(output_path, X, Y) # TODO!!! add method to show the goodness of the trained model, maybe combine with the function above.
