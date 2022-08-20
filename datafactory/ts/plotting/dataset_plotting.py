@@ -47,7 +47,6 @@ def plot_density_for_each_column_in_df(df: pd.DataFrame, save_path: str=None, id
     for i in df.columns:
         plt.figure(figsize=(20,6))
         sns.kdeplot(df[i])
-        #plt.xlabel('Second')
         plt.legend()
         plt.title(str(i))
         plt.tick_params(axis='x',labelsize=18)

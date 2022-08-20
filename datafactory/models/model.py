@@ -152,7 +152,7 @@ class FastAIModel(Model):
         ############## process params #################
         
     @abstractmethod    
-    def _reset_model(self):
+    def _reset_model(self, valid_size=0.25):
         pass
         
     def fit(self, X=None, y=None):
@@ -194,17 +194,16 @@ class TsaiModel(FastAIModel):
         self.y = y.to_numpy()
         
         ############## process params #################
-        self.splits = TSSplitter(valid_size=0.2, show_plot=False)
         self.transforms = get_transforms_ts(params.get('batch_tfms', []))
         self.num_classes = y.max() - 1
         if self.num_classes < 6:
             self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type)
         else:
             self.metrics = get_metrics_fastai(metric_average, model_type=self.model_type, add_top_5_acc=True)
-        self.splits = TSSplitter(valid_size=0.2, show_plot=False)
+        
         ############## process params #################
             
-    def _reset_model(self):
+    def _reset_model(self, valid_size=0.25):
         if self.model_type == 'C':
             learner = TSClassifier
         elif self.model_type == 'R':
@@ -213,9 +212,8 @@ class TsaiModel(FastAIModel):
             learner = TSForecaster
         else:
             raise ValueError(f'Unknown type of model: {model_type}')
-        self.shuffled_X, self.shuffled_y = shuffle(self.X, self.y) 
-        self.splits = TSSplitter()(self.shuffled_X)
-        self.learn = learner(self.shuffled_X, self.shuffled_y, bs=self.bs, splits=self.splits, batch_tfms=self.transforms, arch=self.arch, 
+        splits = TSSplitter(valid_size=valid_size, show_plot=False)(self.X)
+        self.learn = learner(self.X, self.y, bs=self.bs, splits=splits, batch_tfms=self.transforms, arch=self.arch, 
                              metrics=self.metrics, arch_config=self.params_arch, device=self.device)
                 
     def cross_val_score(self, cv=5, scoring='f1'):
@@ -223,8 +221,7 @@ class TsaiModel(FastAIModel):
             scoring = [scoring]    
         scores = {}
         for i in range(cv):
-            # TODO implement correct TS cross validation
-            self._reset_model()
+            self._reset_model(1.0 / cv)
             self.fit()
             
             # record scores
@@ -292,7 +289,7 @@ class TsaiModel(FastAIModel):
 
 
 class PytorchCVModel(FastAIModel): 
-        
+    # TODO rework for Imagedata
     def __init__(self, dataset: Dataset, model_type: str, params:Dict=dict(), metric_average='micro', device='gpu'):
         super(PytorchCVModel, self).__init__(model_type, params=params, metric_average=metric_average, device=device)
         self.params = params

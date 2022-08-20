@@ -15,7 +15,6 @@ from ...util.constants import logger
 from ...util.models import _get_model
 
 def compare_models(X: pd.DataFrame, y: pd.Series, models: list, model_type: str='C', scoring: Union[str, List]='f1', average: str='micro', cv: int=5):
-    # TODO allow multiple metrics
     if type(scoring) != list:
         scoring = [scoring]
     

@@ -83,8 +83,6 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
     CV = cv
     AVERAGE = average  
     
-    # TODO rework ranking and scoring
-    # TODO allow multiple metrics
     if type(scoring) != list:
         scoring = [scoring]
     
@@ -117,7 +115,6 @@ def finetune(X: pd.DataFrame, y: pd.Series, strategy: str='random', models: list
         
     #best_model = trials.results[np.argmin([r['loss'] for r in trials.results])]['model']
     
-    # TODO maybe use tempfiles
     TEMP_X = None
     TEMP_Y = None
     MODEL_TYPE = None
