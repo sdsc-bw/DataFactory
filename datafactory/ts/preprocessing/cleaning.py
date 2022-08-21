@@ -14,7 +14,7 @@ import copy
 sys.path.append('../../util')
 from ...util.constants import logger, bcolors
 
-def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_threshold=None, verbose=False) -> pd.DataFrame:
+def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_threshold=None, nan_threshold=0.5, verbose=False) -> pd.DataFrame:
     """Clean dataset of INF- and NAN-values.
     remove constant columns
     
@@ -29,9 +29,8 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_thre
         
     logger.info('Start to clean the given dataframe...')
     
-    #print('#'*30)
+    # TODO rework saving of information (e.g. return infos in variable)
     print('#### clean na and inf in the data \n', file = file)
-    #print('#'*30)
     
     data = convert_data_comma_and_set_type_float(data, verbose)
     
@@ -39,17 +38,15 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_thre
     print('Set all numeric feature type to float32 at first && deal with INF \n', file = file)
     
     data = data.replace([np.inf, -np.inf], np.nan)
-    
-    # TODO add threshold parameter
-    print(f'Remove columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=0.5].to_list()} \n', file = file)
-    data = data.dropna(axis=1, thresh=data.shape[0] * .5)
+
+    print(f'Remove columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=nan_threshold].to_list()} \n', file = file)
+    data = data.dropna(axis=1, thresh=data.shape[0] * nan_threshold)
     
     print(f'Check constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()} \n', file = file)
     if data.columns[(data == data.iloc[0]).all()] > 0:
         print('There exist columns with constant value, which will be removed from the feature set')
         data = data.loc[:, (data != data.iloc[0]).any()]
 
-    # TODO also add 'bfill', ...
     if data.isna().sum().sum() > 0:
         
         if strategy == 'model':
@@ -170,8 +167,6 @@ def convert_datetime_as_index(df, time_col: Union[str, int, Dict], time_format=N
         df.index  = pd.to_datetime(df[time_col], dayfirst=True, format=time_format)
         df = df.drop([time_col], axis=1)
     elif type(time_col) == dict:
-        #df[time_col['date']] = df[time_col['date']].dt.strftime('%d/%m/%Y')
-        #print(df[time_col['date']])
         df.index  = pd.to_datetime(df[time_col['date']] + ' ' + df[time_col['time']], dayfirst=True, format=time_format)
         df = df.drop([time_col['date'], time_col['time']], axis=1)
     

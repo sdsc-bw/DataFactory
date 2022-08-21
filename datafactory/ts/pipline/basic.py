@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.dummy import DummyRegressor
 
 import os
+import base64
 
 #datafactory
 import sys
@@ -17,10 +18,13 @@ from ..preprocessing.encoding import * # methods for encoding
 from ..preprocessing.outlier_detecting import outlier_detection_feature, outlier_detection_dataframe # methods for outlier detection
 from ..preprocessing.cleaning import * # methods for data cleaning
 from ..preprocessing.validating import * # methods for data checking
-from ..plotting.model_plotting import compute_fig_from_df, plot_feature_importance_of_random_forest, plot_decision_tree # plot method
+from ..plotting.model_plotting import compute_fig_from_df, plot_feature_importance_of_random_forest, plot_decision_tree, plot_predictions # plot method
 
 sys.path.append('../model_training')
 from ..model_training.basic_model_training import compare_models
+
+sys.path.append('../model_explaining')
+from ..model_explaining.model_explaining import explain_models
 
 sys.path.append('../../util')
 from ...util.constants import logger
@@ -35,6 +39,8 @@ import dash_interactive_graphviz
 # plot packages
 import plotly.express as px
 import plotly.graph_objs as go
+
+global MODEL_PERFORMANCE, FEATURE_IMPORTANCE, PREDICTIONS_TRAIN, PREDICTIONS_TEST
 
 ## Setup dash
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -51,7 +57,6 @@ def run_pipline(data_type: str, file_path: str, is_file=True, output_path='./rep
     
     # load dataset
     # TODO also for multiple files, return 
-    # TODO add other parameters: time_col
     df = load_dataset(data_type, file_path, is_file=is_file, sep=sep, index_col=index_col, time_col=time_col, time_format=time_format, sampling_rate=sampling_rate, header=header, query=query, shuffle=shuffle, agg=agg, index_start=index_start, index_end=index_end, pref=pref)
     
     # basic information
@@ -193,55 +198,55 @@ def _get_corr_heatmap(output_path, df):
 def _get_available_models_and_metrics(model_type):
     available_models_classification = [{'label': 'Baseline', 'value': 'baseline_ts'},
                                        {'label': 'DecisionTree', 'value': 'decision_tree'},
-                                       {'label': 'RandomForest', 'value': 'random_forest'},
-                                       {'label': 'AdaBoost', 'value': 'ada_boost'},
-                                       {'label': 'SVM', 'value': 'svm'},
-                                       {'label': 'KNN', 'value': 'knn'},
-                                       {'label': 'GBDT', 'value': 'gbdt'},
-                                       {'label': 'GaussianNB', 'value': 'gaussian_nb'},
-                                       {'label': 'InceptionTime', 'value': 'inception_time'},
-                                       {'label': 'InceptionTimePlus', 'value': 'inception_time_plus'},
-                                       {'label': 'FCN', 'value': 'fcn'},
-                                       {'label': 'GRU', 'value': 'gru'},
-                                       {'label': 'GRUFCN', 'value': 'gru_fcn'},
-                                       {'label': 'LSTM', 'value': 'lstm'},
-                                       {'label': 'LSTMFCN', 'value': 'lstm_fcn'},
-                                       {'label': 'MLP', 'value': 'mlp'},
-                                       {'label': 'MWDN', 'value': 'mwdn'},
-                                       {'label': 'OmniScale', 'value': 'omni_scale'},
-                                       {'label': 'ResCNN', 'value': 'res_cnn'},
-                                       {'label': 'ResNet', 'value': 'res_net'},
-                                       {'label': 'TabModel', 'value': 'tab_model'},
-                                       {'label': 'tcn', 'value': 'TCN'},
-                                       {'label': 'TST', 'value': 'tst'},
-                                       {'label': 'XceptionTime', 'value': 'xception_time'},
-                                       {'label': 'XCM', 'value': 'xcm'}]
+                                       {'label': 'RandomForest', 'value': 'random_forest'},]
+#                                       {'label': 'AdaBoost', 'value': 'ada_boost'},
+#                                       {'label': 'SVM', 'value': 'svm'},
+#                                       {'label': 'KNN', 'value': 'knn'},
+#                                       {'label': 'GBDT', 'value': 'gbdt'},
+#                                       {'label': 'GaussianNB', 'value': 'gaussian_nb'},
+#                                       {'label': 'InceptionTime', 'value': 'inception_time'},
+#                                       {'label': 'InceptionTimePlus', 'value': 'inception_time_plus'},
+#                                       {'label': 'FCN', 'value': 'fcn'},
+ #                                      {'label': 'GRU', 'value': 'gru'},
+#                                       {'label': 'GRUFCN', 'value': 'gru_fcn'},
+#                                       {'label': 'LSTM', 'value': 'lstm'},
+#                                       {'label': 'LSTMFCN', 'value': 'lstm_fcn'},
+#                                       {'label': 'MLP', 'value': 'mlp'},
+ #                                      {'label': 'MWDN', 'value': 'mwdn'},
+#                                       {'label': 'OmniScale', 'value': 'omni_scale'},
+#                                       {'label': 'ResCNN', 'value': 'res_cnn'},
+#                                       {'label': 'ResNet', 'value': 'res_net'},
+#                                       {'label': 'TabModel', 'value': 'tab_model'},
+#                                       {'label': 'tcn', 'value': 'TCN'},
+#                                       {'label': 'TST', 'value': 'tst'},
+#                                       {'label': 'XceptionTime', 'value': 'xception_time'},
+#                                       {'label': 'XCM', 'value': 'xcm'}]
     
     available_models_regression = [{'label': 'Baseline', 'value': 'baseline_ts'},
                                        {'label': 'DecisionTree', 'value': 'decision_tree'},
-                                       {'label': 'RandomForest', 'value': 'random_forest'},
-                                       {'label': 'AdaBoost', 'value': 'ada_boost'},
-                                       {'label': 'SVM', 'value': 'svm'},
-                                       {'label': 'KNN', 'value': 'knn'},
-                                       {'label': 'GBDT', 'value': 'gbdt'},
-                                       {'label': 'BayesianRidge', 'value': 'bayesian_ridge'},
-                                       {'label': 'InceptionTime', 'value': 'inception_time'},
-                                       {'label': 'InceptionTimePlus', 'value': 'inception_time_plus'},
-                                       {'label': 'FCN', 'value': 'fcn'},
-                                       {'label': 'GRU', 'value': 'gru'},
-                                       {'label': 'GRUFCN', 'value': 'gru_fcn'},
-                                       {'label': 'LSTM', 'value': 'lstm'},
-                                       {'label': 'LSTMFCN', 'value': 'lstm_fcn'},
-                                       {'label': 'MLP', 'value': 'mlp'},
-                                       {'label': 'MWDN', 'value': 'mwdn'},
-                                       {'label': 'OmniScale', 'value': 'omni_scale'},
-                                       {'label': 'ResCNN', 'value': 'res_cnn'},
-                                       {'label': 'ResNet', 'value': 'res_net'},
-                                       {'label': 'TabModel', 'value': 'tab_model'},
-                                       {'label': 'tcn', 'value': 'TCN'},
-                                       {'label': 'TST', 'value': 'tst'},
-                                       {'label': 'XceptionTime', 'value': 'xception_time'},
-                                       {'label': 'XCM', 'value': 'xcm'}]
+                                       {'label': 'RandomForest', 'value': 'random_forest'},]
+#                                       {'label': 'AdaBoost', 'value': 'ada_boost'},
+#                                       {'label': 'SVM', 'value': 'svm'},
+#                                       {'label': 'KNN', 'value': 'knn'},
+#                                       {'label': 'GBDT', 'value': 'gbdt'},
+#                                       {'label': 'BayesianRidge', 'value': 'bayesian_ridge'},
+#                                       {'label': 'InceptionTime', 'value': 'inception_time'},
+ #                                      {'label': 'InceptionTimePlus', 'value': 'inception_time_plus'},
+#                                       {'label': 'FCN', 'value': 'fcn'},
+#                                       {'label': 'GRU', 'value': 'gru'},
+#                                       {'label': 'GRUFCN', 'value': 'gru_fcn'},
+#                                       {'label': 'LSTM', 'value': 'lstm'},
+#                                       {'label': 'LSTMFCN', 'value': 'lstm_fcn'},
+#                                       {'label': 'MLP', 'value': 'mlp'},
+#                                       {'label': 'MWDN', 'value': 'mwdn'},
+#                                       {'label': 'OmniScale', 'value': 'omni_scale'},
+#                                       {'label': 'ResCNN', 'value': 'res_cnn'},
+#                                       {'label': 'ResNet', 'value': 'res_net'},
+#                                       {'label': 'TabModel', 'value': 'tab_model'},
+ #                                      {'label': 'tcn', 'value': 'TCN'},
+#                                       {'label': 'TST', 'value': 'tst'},
+#                                       {'label': 'XceptionTime', 'value': 'xception_time'},
+#                                       {'label': 'XCM', 'value': 'xcm'}]
     
     average = ['binary', 'weighted', 'micro', 'macro', 'samples']
     
@@ -339,7 +344,7 @@ def create_layout():
             _add_info_tab(),
             _add_feature_distribution_tab(), # the trend is added as a sub-tab in distribution tab, TODO !!!
             _add_feature_correlation_tab(), # two more correlation sub-tabs are add here: self-reg and pcmci TODO !!!
-            #_add_feature_importance_tab(), TODO replace with LIME Explanation
+            _add_feature_importance_tab(),
             #_add_dt_tab(),
             _add_model_comparison_tab()
             
@@ -363,7 +368,7 @@ def _add_info_tab():
             __add_task_tab(),
             __add_statistics_tab(),
             __add_outlier_tab(),
-            __add_preprocessing_tab()
+#            __add_preprocessing_tab()
         ])
     ])
     
@@ -411,8 +416,8 @@ def _add_feature_distribution_tab():
             dcc.Tabs([
                 __add_class_distribution_tab(),
                 __add_violin_distribution_tab(),
-                __add_trend_tab(), # the function to add trend tab TODO !!!!
-                __add_target_decomposition_tab(), # the function to add decomp tab TODO !!!!
+#                __add_trend_tab(), # the function to add trend tab TODO !!!!
+#                __add_target_decomposition_tab(), # the function to add decomp tab TODO !!!!
             ])
         ])
     
@@ -420,8 +425,8 @@ def _add_feature_distribution_tab():
         out = dcc.Tab(label='Feature Distribution', children=[
             dcc.Tabs([
                 __add_violin_distribution_tab(),
-                __add_trend_tab(), # too
-                __add_target_decomposition_tab(), # too
+#                __add_trend_tab(), # too
+#                __add_target_decomposition_tab(), # too
             ])
         ])
     
@@ -534,8 +539,8 @@ def _add_feature_correlation_tab():
         dcc.Tabs([
             __add_heatmap_tab(),
             __add_scatter_plot_tab(),
-            __add_self_regression_tab(), # function to add self regression tab TODO!!!!!
-            __add_pcmci_tab() # function to add pcmci tab TODO!!!!!
+#            __add_self_regression_tab(), # function to add self regression tab TODO!!!!!
+#            __add_pcmci_tab() # function to add pcmci tab TODO!!!!!
         ])
     ])
     
@@ -674,18 +679,66 @@ def ___add_scatter_plot_custom():
 
 
 def _add_feature_importance_tab():
-    # TODO edit meaning
-    df_meaning_importance = pd.DataFrame([['0.8-1.0', 'very high'], ['0.6-0.8', 'high'], ['0.4-0.6', 'middle'], ['0.2-0.4', 'low'], ['0.0-0.2', 'very low']], columns=['Range (absolute)', 'importance'])
-    out = dcc.Tab(label='Feature Importance', children=[
-        html.H4('Feature Importance'),
-        html.P(f'The importance of the features is obtained from a random forest. It shows the importance of individual attributes for target prediction. The importance of a feature is between [0, 1]. The higher the importance, the higher is the influence of the feature to the target prediction.', className='par'),
-        html.Div([
-            dcc.Graph(id='figure_feature_importance', figure=plot_feature_importance_of_random_forest(FEATURE_IMPORTANCE), className='fig_with_description'),
-            #add_dataframe_table(df_meaning_importance, className='description'),
-        ])
+    global X, Y, AVAILABLE_MODELS, OUTPUT_PATH, MODEL_TYPE
+    models = list(set([model['value'] for model in AVAILABLE_MODELS]))
+    if 'baseline_ts' in models:
+        models.remove('baseline_ts') 
+    options = models
+    curr_model = models[0]
+    
+    global FEATURE_IMPORTANCE, PREDICTIONS_TRAIN, PREDICTIONS_TEST
+    FEATURE_IMPORTANCE, PREDICTIONS_TRAIN, PREDICTIONS_TEST = explain_models(X, Y, models, MODEL_TYPE)
+    #feature_importance_fig = plot_feature_importance(FEATURE_IMPORTANCE[curr_model])
+    pred_fig = plot_predictions(PREDICTIONS_TRAIN[curr_model], PREDICTIONS_TEST[curr_model], Y)
+    
+    save_dir = OUTPUT_PATH + 'feature_importance/' 
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+    #FEATURE_IMPORTANCE[curr_model].show_in_notebook()
+    fi = FEATURE_IMPORTANCE[curr_model].as_pyplot_figure()
+    plt.savefig(save_dir + curr_model + '.png', bbox_inches='tight')
+    feature_importance_fig = base64.b64encode(open(save_dir + curr_model + '.png', 'rb').read()).decode('ascii')
+    
+    out = dcc.Tab(label='Explanations', children=[
+        dcc.Tabs([
+            dcc.Tab(label='Feature Importance', children=[
+                html.H2('Feature Importance'),
+                html.P('This Tab shows the importance of each feature of a random sample for the selected models', className='par'),
+                html.Label('Select the model:', className='dropdown_label'),
+                dcc.Dropdown(id = "dropdown_model_exp", options = options,
+                                 value = curr_model, multi = False, className='dropdown_with_label'),
+                html.Img(src='data:image/png;base64,{}'.format(feature_importance_fig), id='graph_lime', className='fi_fig')
+            ]),
+            dcc.Tab(label='Predictions', children=[
+                html.H2('Predictions'),
+                html.P('Here you can compare the actual value with the predicted value of the selected model.', className='par'),
+                html.Label('Select the model:', className='dropdown_label'),
+                dcc.Dropdown(id = "dropdown_model_pred", options = list(PREDICTIONS_TRAIN.keys()),
+                                 value = curr_model, multi = False, className='dropdown_with_label'),
+                dcc.Graph(id='graph_predictions', figure=pred_fig)
+            ]),
+        ]),
     ])
     
+        
+    @app.callback(Output('graph_lime', 'src'),
+                  Input('dropdown_model_exp', 'value'))
+    def update_fi_fig(curr_model):
+        fi = FEATURE_IMPORTANCE[curr_model].as_pyplot_figure()
+        plt.savefig(save_dir + curr_model + '.png', bbox_inches='tight')
+        fig = base64.b64encode(open(save_dir + curr_model + '.png', 'rb').read()).decode('ascii')
+        src = 'data:image/png;base64,{}'.format(fig)
+        return src
+
+    @app.callback(Output('graph_predictions', 'figure'),
+                  Input('dropdown_model_pred', 'value'))
+    def update_pred_fig(curr_model):
+        fig = plot_predictions(PREDICTIONS_TRAIN[curr_model], PREDICTIONS_TEST[curr_model], Y)
+        return fig
+    
     return out
+
+
 
 def _add_dt_tab():
     # TODO do not allow scrolling with mouse (buttons instead) and change initial size (at the moment to large)
@@ -725,13 +778,13 @@ def _add_model_comparison_tab():
                 multi = True
             ),
             dcc.Graph(id = "figure_basic_model_comparison"),
-            dcc.Dropdown(
-                id = "dropdown_basic_model_scatter_plot",
-                options = AVAILABLE_MODELS,
+#            dcc.Dropdown(
+#                id = "dropdown_basic_model_scatter_plot",
+#                options = AVAILABLE_MODELS,
                 #value = [model['value'] for model in AVAILABLE_MODELS],
-                multi = False
-            ),
-            dcc.Graph(id = "figure_basic_model_scatter_plot"),
+#                multi = False
+#            ),
+#            dcc.Graph(id = "figure_basic_model_scatter_plot"),
         ])
     
     return out

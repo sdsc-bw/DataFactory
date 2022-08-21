@@ -32,11 +32,11 @@ def explain_models(X, y, models, model_type, idx=None):
     predictions_test = {}
 
     for m in tqdm(models):
-        model = model = _get_model(m, X, y, model_type)
+        model = _get_model(m, X, y, model_type)
         explanations[m], predictions_train[m], predictions_test[m] = train_and_explain(model, X, y, model_type, idx=idx)
     
     
-    return explanations, predictions_train, predictions_test # TODO if not in explanation add pred and actual
+    return explanations, predictions_train, predictions_test
 
 def train_and_explain(model, X, y, model_type, idx=None):
     X_train, X_test, y_train, y_test = train_test_split(X, y, shuffle=False)
@@ -56,7 +56,6 @@ def train_and_explain(model, X, y, model_type, idx=None):
     
     explainer = lime.lime_tabular.LimeTabularExplainer(X_train, mode=mode, feature_names=X.columns)
     
-    # TODO allow selection of samples
     if idx is None:
         idx = random.randint(0, len(X_test) - 1)
     explanation = explainer.explain_instance(X_test[idx], model.predict, num_features=len(X.columns), num_samples=10000)
