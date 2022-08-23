@@ -29,6 +29,8 @@ from ...util.metrics import evaluate
 def load_dataset(datatype, file_path, is_file=True, time_col=None, time_format=None, sampling_rate=timedelta(days=1), header: str='infer', sep: str=',', index_col: Union[str, int]=0, query: Union[list,str]="""select *""", shuffle: bool=False, agg: str=None, index_start=None, index_end=None, output_path=None, pref=None):
     if datatype == 'sqlite3':
         dfs = load_datasets_from_database(file_path, is_file, query=query)
+    elif datatype == 'directory':
+        dfs = load_datasets_from_dir(file_path, is_file, query=query)
     else:
         dfs = load_datasets_from_file(datatype, file_path, is_file, header=header, sep=sep, index_col=index_col, time_col=time_col, 
                                       time_format=time_format)
@@ -52,7 +54,7 @@ def load_dataset(datatype, file_path, is_file=True, time_col=None, time_format=N
     
     return df
 
-def load_dataset_from_dir(path: str, header: str = 'infer', sep: str = ',', index_col: Union[str, int] = 0, time_format: str = None, dayfirst = True):
+def load_datasets_from_dir(path: str, header: str = 'infer', sep: str = ',', index_col: Union[str, int] = 0, time_format: str = None, dayfirst = True):
     """
     Attention: timestamp should be set to index
     Keyword arguments:
@@ -210,7 +212,7 @@ def load_datasets_from_file(data_type, path_or_root_dir, is_file, header: str='i
 
 
 
-def load_datasets_from_database(database: Union[list,str], query: Union[list,str]="""select *""", shuffle: bool=True):
+def load_datasets_from_database(database: Union[list,str], query: Union[list,str]="""select *"""):
     """Loads one or multiple datasets from the given databases.
         
     Keyword arguments:
