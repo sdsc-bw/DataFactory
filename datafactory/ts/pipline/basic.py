@@ -114,8 +114,9 @@ def create_layout(input_df, data_description, sampling_rate, sampling_rate_forma
             #_add_feature_distribution_tab(), # the trend is added as a sub-tab in distribution tab, TODO !!!
             #_add_feature_correlation_tab(), # two more correlation sub-tabs are add here: self-reg and pcmci TODO !!!
             _add_model_comparison_tab(input_df),
-            #_add_feature_importance_tab(input_df),
-            #_add_dt_tab(),
+            _add_explanation_tab(input_df),
+            _add_summary_tab(),
+            #_add_dt_tab(), # TODO move to explanation tab
             
             
         ])
@@ -520,9 +521,9 @@ def _add_parameter_tab(input_df, models, metrics):
     
     return out
 
-######################### Feature Importance Tab #########################
+######################### Explanation Tab #########################
 
-def _add_feature_importance_tab(input_df):
+def _add_explanation_tab(input_df):
     
     out = dcc.Tab(label='Model Explanations', children=[
         dcc.Tabs([
