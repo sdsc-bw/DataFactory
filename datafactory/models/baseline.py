@@ -91,7 +91,7 @@ class BaselineTS(Model):
     
     
     def predict_probas(self, X):
-        # TODO add prediction for classification
+        # TODO add prediction for regression
         if isinstance(X, np.ndarray):
             X = pd.DataFrame(X)
 

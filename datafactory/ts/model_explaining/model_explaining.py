@@ -22,8 +22,6 @@ from ...util.models import _get_model
                                                        
 def explain_models(X, y, models, model_type, idx=None):  
     
-    X = X.dropna(axis=1)
-    
     logger.info('Start calculation of feature importance...')
 
     
@@ -32,7 +30,7 @@ def explain_models(X, y, models, model_type, idx=None):
     predictions_test = {}
 
     for m in tqdm(models):
-        model = model = _get_model(m, X, y, model_type)
+        model = _get_model(m, X, y, model_type)
         explanations[m], predictions_train[m], predictions_test[m] = train_and_explain(model, X, y, model_type, idx=idx)
     
     
@@ -43,8 +41,8 @@ def train_and_explain(model, X, y, model_type, idx=None):
     X_train = X_train.to_numpy()
     X_test = X_test.to_numpy()
     y_train = y_train.to_numpy()
-    y_test = y_test.to_numpy()
-       
+    y_test = y_test.to_numpy()    
+        
     model.fit(X=X_train, y=y_train)    
     
     if model_type == 'C':

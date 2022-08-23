@@ -4,6 +4,10 @@
     margin-bottom: 20px;
 }
 
+.par_corr {
+    margin-left: 10px;
+}
+
 .table {
     overflow: auto;
     width: auto;
@@ -30,6 +34,8 @@
 .dropdown_with_label{
    display: inline-block;
    margin-right: 20px;
+   margin-bottom: 10px;
+   min-width: 200px
 }
 
 .dropdown {
@@ -41,4 +47,28 @@
 
 .dropdown_label {
     display: inline-block;
+}
+
+.dropdown_corr {
+    width: 50px;
+    height: 30px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-bottom: 10px;
+    
+}
+
+.dropdown_component {
+   width: 50px;
+   height: auto;
+   display: inline-block;
+   margin-left: 10px;
+}
+
+.title_header {
+    text-align: center;
+}
+
+.div_hidden {
+    display: None;
 }

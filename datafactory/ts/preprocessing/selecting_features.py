@@ -9,6 +9,7 @@ from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer, IterativeImputer
 from sklearn.feature_selection import SelectKBest, SelectPercentile, GenericUnivariateSelect, RFE, SelectFromModel
 from sklearn.feature_selection import chi2, f_classif, mutual_info_classif, f_regression, mutual_info_regression
+from sklearn.decomposition import FactorAnalysis
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 import sys
 
@@ -71,6 +72,9 @@ def feature_selection(dat_x: pd.DataFrame, dat_y: pd.Series, method: str ='selec
     
     elif method == 'select_model':
         fs = SelectFromModel(**kw)
+        
+    elif method == 'factor_analysis':
+        fs = FactorAnalysis(**kw)
     
     else:
         print(f'Unrecognized method {method}, use select_best instead')

@@ -62,7 +62,9 @@ def plot_predictions(pred_train, pred_test, y):
 def compute_fig_from_df(result, metric=None):
     if metric is None:
         metric = list(result.columns)[1:]
-
+        
+    print(result)
+        
     if type(metric) != list:
         metric = [metric]  
     
