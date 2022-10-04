@@ -87,6 +87,38 @@ def apply_transforms(df: pd.DataFrame, transform: List):
     new_df = pd.concat([df, new_features], axis = 1)
     return new_df
 
+def apply_single_transform(params, transform: str):
+    """Applies a singel transformations to the given parameters.
+    
+    Keyword arguments:
+    params -- series where the transformation should be applied and parameters of the transformation 
+    transform -- Transformations to be applied
+    Output:
+    dataframe with transformed dataframe
+    """
+    
+    if transform in TRANSFORMS_UNARY:
+        logger.info(f'Applying transformation: {TRANSFORMS_UNARY[transform]}')
+        transformed_df = TRANSFORMS_UNARY[transform].fit(**params)
+    elif transform in TRANSFORMS_BINARY:
+        logger.info(f'Applying transformation: {TRANSFORMS_BINARY[transform]}')
+        transformed_df = TRANSFORMS_BINARY[transform].fit(**params)
+    elif transform in TRANSFORMS_MULTI:
+        logger.info(f'Applying transformation: {TRANSFORMS_MULTI[transform]}')
+        transformed_df = TRANSFORMS_MULTI[transform].fit(**params)
+    elif transform in TRANSFORMS_CLA_SUPERVISED:
+        logger.info(f'Applying transformation: {TRANSFORMS_CLA_SUPERVISED[transform]}')
+        transformed_df = TRANSFORMS_CLA_SUPERVISED[transform].fit(**params)
+    elif transform in TRANSFORMS_REG_SUPERVISED:
+        logger.info(f'Applying transformation: {TRANSFORMS_REG_SUPERVISED[transform]}')
+        transformed_df = TRANSFORMS_REG_SUPERVISED[transform].fit(**params)
+    else:
+        logger.info(f'Applying custom transformation: {transform}')
+        transformed_df = apply_custom_transform_to_dataframe(transform, **params)
+        
+    return transformed_df
+    
+
 def apply_unary_transforms_to_series(value: pd.Series, transform: List=None) -> pd.DataFrame:
     """Applies all unary or the defined transformations to a given series.
     
@@ -198,3 +230,8 @@ def apply_supervised_transforms_to_dataframe(X_train: pd.DataFrame, X_test: pd.D
     transformed_dfs_train = pd.concat(dfs_train, axis = 1)
     transformed_dfs_test = pd.concat(dfs_test, axis = 1)
     return transformed_dfs_train, transformed_dfs_test
+
+def apply_custom_transform_to_dataframe(transform:str, params:Dict):
+    custom_transformation = eval(transform)
+    transformed_df = custom_transformation(**params)
+    return transformed_df
