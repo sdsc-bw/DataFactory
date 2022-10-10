@@ -11,6 +11,7 @@ import mlflow
 from typing import cast, Any, Dict, List, Tuple, Optional, Union
 from tsai.all import *#
 from statistics import mean
+from IPython.display import clear_output
 
 from .search_space import std_search_space
 

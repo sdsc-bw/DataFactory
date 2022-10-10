@@ -101,6 +101,18 @@ def _get_statistical_information(output_path, df):
     data_description = pd.read_csv(output_path + '/statistic.csv')
     return data_description
 
+def _get_outlier(output_path, df):
+    outlier = outlier_detection_dataframe(df)
+    outlier.to_csv(output_path + '/outlier.csv')
+    return outlier
+
+def _check_data(output_path, target_col, df, model_type):
+    info_file = open(output_path + "/data_report.txt", "w")
+    data_numeric, _, y, n_numeric_nan, le_name_mapping, _, flag_wrong_target = check_data_and_distribute(df, model_type=model_type, file=info_file, target_col=target_col)
+    info_file.close()
+    
+    return le_name_mapping
+
 ##################### Layout ######################### 
 
 def create_layout(input_df, data_description, sampling_rate, sampling_rate_format, standard_models, standard_metrics):
@@ -113,9 +125,10 @@ def create_layout(input_df, data_description, sampling_rate, sampling_rate_forma
             #_add_preprocessed_tab() # add feature corr, scatterplots, ...
             #_add_feature_distribution_tab(), # the trend is added as a sub-tab in distribution tab, TODO !!!
             #_add_feature_correlation_tab(), # two more correlation sub-tabs are add here: self-reg and pcmci TODO !!!
+            _add_preprocessing_tab(input_df),
             _add_model_comparison_tab(input_df),
             _add_explanation_tab(input_df),
-            _add_summary_tab(),
+            #_add_summary_tab(),
             #_add_dt_tab(), # TODO move to explanation tab
             
             
@@ -136,11 +149,12 @@ def _add_info_tab(input_df, data_description, sampling_rate, sampling_rate_forma
         dcc.Tabs([
 #            __add_task_tab(), # TODO add infos about task
             __add_statistics_tab(data_description),
-            __add_feature_correlation_tab(input_df),
-            __add_scatter_plot_tab(input_df),
+            #__add_feature_correlation_tab(input_df),
+            ___add_corr_tab(input_df),
+            ___add_scatter_plot_custom(input_df),
+#            __add_scatter_plot_tab(input_df),
 #            __add_input_line_plot(input_df, sep, output_path, agg, sampling_rate, sampling_rate_format), # comment in after adding parameter tab
-#            __add_outlier_tab(), # TODO add repräsentation of outliers
-#            __add_preprocessing_tab() # TODO move to other tab
+            #__add_outlier_tab(input_df), # TODO add representation of outliers
         ])
     ])
     
@@ -148,7 +162,7 @@ def _add_info_tab(input_df, data_description, sampling_rate, sampling_rate_forma
 
 def __add_statistics_tab(data_description):
     out = dcc.Tab(label='Statistics', children=[
-        html.H4('Statistics'),
+        html.H2('Statistics'),
         html.P('Here are the common statistical measurements applied on the numeric features of the dataset.', className='par'),
         add_dataframe_table(data_description),
     ])
@@ -158,15 +172,15 @@ def __add_statistics_tab(data_description):
 def __add_feature_correlation_tab(input_df):
     out = dcc.Tab(label='Correlations', children=[
         dcc.Tabs([
-            ___add_input_corr_tab(input_df),
-            ___add_self_regression_tab(), # TODO add self regression !!!!!
-            ___add_pcmci_tab() # TODO add pcmci!!!!!
+            ___add_corr_tab(input_df),
+            ___add_self_regression_tab(), # TODO add self regression !!!!! Seems on wrong place?
+            ___add_pcmci_tab() # TODO add pcmci!!!!! only after/before preprocessing bc it takes very long
         ])
     ])
     
     return out
 
-def ___add_input_corr_tab(input_df):
+def ___add_corr_tab(input_df):
     df_heatmap_all = input_df.corr()
     df_heatmap = df_heatmap_all.reset_index().melt(id_vars='index').query(f'(value >={99/100})&(value<1)')
     ticks = np.arange(1, 100)
@@ -210,7 +224,6 @@ def __add_scatter_plot_tab(input_df):
     out = dcc.Tab(label='Scatter Plots', children=[
         dcc.Tabs([
             ____add_scatter_plot_important_features_tab(input_df),
-#            ___add_scatter_plot_important_features_target_tab(), # Move to outputtab
             ___add_scatter_plot_custom(input_df)
             
         ])
@@ -221,7 +234,7 @@ def __add_scatter_plot_tab(input_df):
 def ____add_scatter_plot_important_features_tab(input_df):
     # TODO select important features instead of whole DF
     out = dcc.Tab(label='Important Features', children=[
-        html.H4('Scatter Plots of Important Features'),
+        html.H2('Scatter Plots of Important Features'),
         html.P("A scatter plot displays the values of two features of the dataset. It can show the degree of the correlation between two features. If the points' pattern slopes from lower left to upper right, it indicates a positive correlation. If the pattern of points slopes from upper left to lower right, it indicates a negative correlation.", className='par'),
         html.Div([
             html.Label('X-axis:', className='dropdown_label'),
@@ -259,8 +272,8 @@ def ____add_scatter_plot_important_features_tab(input_df):
     return out
 
 def ___add_scatter_plot_custom(input_df):
-    out = dcc.Tab(label='Custom', children=[
-        html.H4('Scatter Plots of Custom Features'),
+    out = dcc.Tab(label='Scatter Plots', children=[
+        html.H2('Scatter Plots of Custom Features'),
         html.P("Here you can create a scatter plot of every column in the dataset.", className='par'),
         html.Div([
             html.Label('X-axis:', className='dropdown_label'),
@@ -296,7 +309,9 @@ def ___add_scatter_plot_custom(input_df):
     
     return out
 
-def ___add_pcmci_tab():  # tab to show the pcmci result TODO!!!!!
+############## PCMI Tab ##################
+
+def ___add_pcmi_tab():  # tab to show the pcmci result TODO!!!!!
     """
     it may include:
         - a title
@@ -306,10 +321,12 @@ def ___add_pcmci_tab():  # tab to show the pcmci result TODO!!!!!
     """
     # TODO add
     out = dcc.Tab(label='PCMI Analysis', children=[
-        html.H4('PCMI Analysis'),
+        html.H2('PCMI Analysis'),
     ])
     
     return out
+
+############## Self Regression Tab ##################
 
 def ___add_self_regression_tab(): # the new tab to show self regression TODO!!!!
     """
@@ -321,10 +338,12 @@ def ___add_self_regression_tab(): # the new tab to show self regression TODO!!!!
     """
     # TODO add
     out = dcc.Tab(label='Self Regression', children=[
-        html.H4('Self Regression'),
+        html.H2('Self Regression'),
     ])
     
     return out
+
+############## Line Plot Tab ##################
 
 def __add_input_line_plot(input_df, sep, output_path, agg, sampling_rate, sampling_rate_format):
     cols = input_df.columns[:2]
@@ -369,7 +388,7 @@ def __add_input_line_plot(input_df, sep, output_path, agg, sampling_rate, sampli
                 dcc.Input(id="input_sr", type="text", value=1, className='dropdown'),
                 dcc.Dropdown(id='dropdown_sr', options=list(SR_OPTIONS.keys()), value='Stunde(n)', className='dropdown'),
              ]),
-            html.Button('Berechne', id='compute_resampling_button', n_clicks=0),
+            html.Button('Compute', id='compute_resampling_button', n_clicks=0),
         ]),
         dcc.Graph(id='graph_agg_line_input', figure=agg_line_fig),
     
@@ -412,7 +431,19 @@ def __add_input_line_plot(input_df, sep, output_path, agg, sampling_rate, sampli
     
     return out
 
-########### Parameter Tab ############
+############## Outlier Tab ##################
+
+def __add_outlier_tab(input_df): # TODO add repräsentation of outliers
+    outliers = _get_outlier(OUTPUT_PATH, input_df)
+    
+    out = dcc.Tab(label='Outlier', children=[
+        html.H2('Outlier'),
+    ])
+    
+    return out
+
+########### Parameter Tab ##################
+
 def _add_parameter_tab(input_df, models, metrics):
     options = list(input_df.columns)
     target_value = input_df.columns[-1]
@@ -427,49 +458,49 @@ def _add_parameter_tab(input_df, models, metrics):
         html.Label('Select the target:', className='dropdown_label'),
         dcc.Dropdown(id='dropdown_target_par', options=options, value=target_value, multi=False, className='dropdown_with_label'),
         
-        html.H4('Feature Selection'),
-        html.Label('Select strategies for the feature selection:'),
-        dcc.RadioItems(options=['Manual', 'Factor Analysis', 'K-Best', 'Precentile', 'Generic Univariate Select', 'Recursive Feature Elimination', 'Recursive Feature Elimination with Cross Validation', 'Model Selection'], value='Manual', id='checkbox_feature_par'),
-        html.Div([
-            html.H6('Manual'),
-            html.Div([
-                html.Label('Select the features:', className='dropdown_label'),
-                dcc.Dropdown(id = 'dropdown_features_par', options=options, value=options, multi=True, className='dropdown_with_label'),
-            ]),
-        ], id='div_manual', className='div_hidden'),
-        html.Div([
-            html.H6('Factor Analysis'),
-            html.Div([
-                html.Label('Select the number of components:', className='dropdown_label'),
-                dcc.Input(id="input_fa_par", type="text", value=5, className='dropdown_component'),
-            ]),
-        ], id='div_factor_analysis', className='div_hidden'),
-        html.Div([
-            html.H6('K-Best'),
-            html.Div([
-                html.Label('Select k:', className='dropdown_label'),
-                dcc.Input(id="input_k_par", type="text", value=5, className='dropdown_component'),
-            ]),
-        ], id='div_k_best', className='div_hidden'),
-        # TODO add rest divs of the options
+#        html.H4('Feature Selection'),
+#        html.Label('Select strategies for the feature selection:'),
+#        dcc.RadioItems(options=['Manual', 'Factor Analysis', 'K-Best', 'Precentile', 'Generic Univariate Select', 'Recursive Feature Elimination', 'Recursive Feature Elimination with Cross Validation', 'Model Selection'], value='Manual', id='checkbox_feature_par'),
+#        html.Div([
+#            html.H6('Manual'),
+#            html.Div([
+#                html.Label('Select the features:', className='dropdown_label'),
+#                dcc.Dropdown(id = 'dropdown_features_par', options=options, value=options, multi=True, className='dropdown_with_label'),
+#            ]),
+#        ], id='div_manual', className='div_hidden'),
+#        html.Div([
+#            html.H6('Factor Analysis'),
+#            html.Div([
+#                html.Label('Select the number of components:', className='dropdown_label'),
+#                dcc.Input(id="input_fa_par", type="text", value=5, className='dropdown_component'),
+#            ]),
+#        ], id='div_factor_analysis', className='div_hidden'),
+#        html.Div([
+#            html.H6('K-Best'),
+#            html.Div([
+#               html.Label('Select k:', className='dropdown_label'),
+#               dcc.Input(id="input_k_par", type="text", value=5, className='dropdown_component'),
+#           ]),
+#       ], id='div_k_best', className='div_hidden'),
+#       # TODO add rest divs of the options
         
-        html.H4('Preprocessing'),
-        html.Label('Select strategies for the preprocessing:'),
-        dcc.Checklist(options=['Resampling'], value=[], id='checkbox_prep_par'),
-        html.Div([
-             html.H6('Resampling'),
-             html.Div([
-                 html.Label('Select the sampling strategy:', className='dropdown_label'),
-                 dcc.Dropdown(id='dropdown_agg_par', options=['mean', 'max', 'min', 'std'], value='mean', className='dropdown'),
-             ]),
-             html.Div([
-                 html.Label('Select the sampling rate:', className='dropdown_label'),
-                 html.Div([
-                     dcc.Input(id="input_sr_par", type="text", value=1, className='dropdown'),
-                     dcc.Dropdown(id='dropdown_grad_par', options=list(SR_OPTIONS.keys()), value='Hour(s)', className='dropdown'),
-                 ]),
-             ]),
-        ], id='div_resampling_par', className='div_hidden'),
+#        html.H4('Preprocessing'),
+#        html.Label('Select strategies for the preprocessing:'),
+#        dcc.Checklist(options=['Resampling'], value=[], id='checkbox_prep_par'),
+#        html.Div([
+#             html.H6('Resampling'),
+ #            html.Div([
+ #                html.Label('Select the sampling strategy:', className='dropdown_label'),
+ #                dcc.Dropdown(id='dropdown_agg_par', options=['mean', 'max', 'min', 'std'], value='mean', className='dropdown'),
+ #            ]),
+ #            html.Div([
+ #                html.Label('Select the sampling rate:', className='dropdown_label'),
+ #                html.Div([
+ #                    dcc.Input(id="input_sr_par", type="text", value=1, className='dropdown'),
+ #                    dcc.Dropdown(id='dropdown_grad_par', options=list(SR_OPTIONS.keys()), value='Hour(s)', className='dropdown'),
+ #                ]),
+ #            ]),
+#        ], id='div_resampling_par', className='div_hidden'),
         # TODO add rest divs of the options
         
         html.H4('Modelle'),
@@ -483,7 +514,7 @@ def _add_parameter_tab(input_df, models, metrics):
         dcc.Dropdown(id="dropdown_average_par", options=available_averages, 
                      value=available_averages[2], multi=False, className='dropdown_with_label'),
         
-        html.Button('Berechne', id='compute_button', n_clicks=0),
+        html.Button('Compute', id='compute_button', n_clicks=0),
     ])
         
     
@@ -526,22 +557,15 @@ def _add_parameter_tab(input_df, models, metrics):
 def _add_explanation_tab(input_df):
     
     out = dcc.Tab(label='Model Explanations', children=[
-        dcc.Tabs([
-            dcc.Tab(label='Feature Importance', children=[
-                html.H2('Feature Importance'),
-                html.P('Here you can see the importance of each feature of the selected model for a random sample.', className='par'),
-                html.Label('Select a model:', className='dropdown_label'),
-                dcc.Dropdown(id="dropdown_model_exp", multi = False, className='dropdown_with_label'),
-                html.Img(id='graph_lime', className='fi_fig')
-            ]),
-            dcc.Tab(label='Predictions', children=[
-                html.H2('Predictions'),
-                html.P('Here you can compare the actual value with the predicted value of the selected model.', className='par'),
-                html.Label('Select a model:', className='dropdown_label'),
-                dcc.Dropdown(id="dropdown_model_pred", multi=False, className='dropdown_with_label'),
-                dcc.Graph(id='graph_predictions')
-            ]),
-        ]),
+        html.H2('Model Explanation'),
+        html.P('Here you can see the importance of each feature of the selected model for a random sample.', className='par'),
+        html.Label('Select a model:', className='dropdown_label'),
+        dcc.Dropdown(id="dropdown_model_exp", multi = False, className='dropdown_with_label'),
+        html.Label('Select an index to explain:', className='input_label'),
+        dcc.Input(id="input_exp_idx", type='number', className='input_with_label'),
+        html.Button('Explain', id='explain_button', n_clicks=0),       
+        dcc.Graph(id='graph_predictions'),
+        html.Img(id='graph_lime'),
     ])
     
     #
@@ -549,8 +573,7 @@ def _add_explanation_tab(input_df):
                   Output('dropdown_model_exp', 'options'),
                   Output('dropdown_model_exp', 'value'),
                   Output('graph_predictions', 'figure'),
-                  Output('dropdown_model_pred', 'options'),
-                  Output('dropdown_model_pred', 'value'),
+                  Output('input_exp_idx', 'value'),
 #                  State('checkbox_feature_par', 'value'), # TODO add parameters parametertab
 #                  State('checkbox_prep_par', 'value'),
 #                  State('input_fa_par', 'value'),  
@@ -560,41 +583,40 @@ def _add_explanation_tab(input_df):
  #                 State('dropdown_features_par', 'value'),
                   State('dropdown_target_par', 'value'),
                   State('dropdown_models_par', 'value'),
-                  State('dropdown_model_pred', 'value'),
                   State('dropdown_model_exp', 'value'),
-                  Input('compute_button', 'n_clicks'))
-    def update_feature_importance_tab(target, models, curr_model_pred, curr_model_fi, n_clicks):   
-        options_pred = sorted([m for m in get_models_from_list(MODEL_TYPE, models_values=models)], key=lambda m: m['label'])
-        options_fi = copy(options_pred)
-        # TODO edit function so that baseline prediction is computed but not explained
-        if {'label': 'Baseline', 'value': 'baseline_ts'} in options_pred:
-            options_pred.remove({'label': 'Baseline', 'value': 'baseline_ts'})
-        # don't explain baseline
-        if {'label': 'Baseline', 'value': 'baseline_ts'} in options_fi:
-            options_fi.remove({'label': 'Baseline', 'value': 'baseline_ts'})
-        if 'baseline_ts' in models:
+                  State('input_exp_idx', 'value'),
+                  Input('compute_button', 'n_clicks'), 
+                  Input('explain_button', 'n_clicks'))
+    def update_explanation_tab(target, models, curr_model_exp, idx, n_clicks_compute, n_clicks_explain):   
+        options = sorted([m for m in get_models_from_list(MODEL_TYPE, models_values=models)], key=lambda m: m['label'])
+        # TODO edit function so that baseline is also explainable
+        if {'label': 'Baseline', 'value': 'baseline_ts'} in options:
+            options.remove({'label': 'Baseline', 'value': 'baseline_ts'})
             models.remove('baseline_ts')
-        curr_option_pred = options_pred[0]['value']
-        curr_option_fi = options_fi[0]['value']
+        curr_option = options[0]['value']
         
         # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
         # TDO add strategy parameter and lags in parameter tab and give them to split function
         X, y = split_X_y(input_df, target)
         
+        if idx is None or idx == '':
+            idx = random.randint(0, len(X) - 1)
+            
+        
         # compute feature importance an prediction of models
         global FEATURE_IMPORTANCE, PREDICTIONS_TRAIN, PREDICTIONS_TEST
-        FEATURE_IMPORTANCE, PREDICTIONS_TRAIN, PREDICTIONS_TEST = explain_models(X, y, models, MODEL_TYPE)
+        FEATURE_IMPORTANCE, PREDICTIONS_TRAIN, PREDICTIONS_TEST = explain_models(X, y, models, MODEL_TYPE, idx=idx)
         
         # plot predictions
-        fig_pred = plot_predictions(PREDICTIONS_TRAIN[curr_option_pred], PREDICTIONS_TEST[curr_option_pred], y)
+        fig_pred = plot_predictions(PREDICTIONS_TRAIN[curr_option], PREDICTIONS_TEST[curr_option], y)
         
         # plot feature importance        
-        fi = FEATURE_IMPORTANCE[curr_option_fi].as_pyplot_figure()
-        plt.savefig(OUTPUT_PATH + '/feature_importance/' + curr_option_fi + '.png', bbox_inches='tight')
-        fi_fig = base64.b64encode(open(OUTPUT_PATH + '/feature_importance/' + curr_option_fi + '.png', 'rb').read()).decode('ascii')
+        fi = FEATURE_IMPORTANCE[curr_option].as_pyplot_figure()
+        plt.savefig(OUTPUT_PATH + '/feature_importance/' + curr_option + '.png', bbox_inches='tight')
+        fi_fig = base64.b64encode(open(OUTPUT_PATH + '/feature_importance/' + curr_option + '.png', 'rb').read()).decode('ascii')
         fi_src = 'data:image/png;base64,{}'.format(fi_fig)
         
-        return fi_src, options_fi, curr_option_fi, fig_pred, options_pred, curr_option_pred
+        return fi_src, options, curr_option, fig_pred, idx
     
         
     @APP.callback(Output('graph_lime', 'src'),
@@ -608,7 +630,7 @@ def _add_explanation_tab(input_df):
 
     @APP.callback(Output('graph_predictions', 'figure'),
                   State('dropdown_target_par', 'value'),
-                  Input('dropdown_model_pred', 'value'))
+                  Input('dropdown_model_exp', 'value'))
     def update_pred_fig(target, curr_model):
         # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
         # TDO add strategy parameter and lags in parameter tab and give them to split function
@@ -616,9 +638,277 @@ def _add_explanation_tab(input_df):
         fig = plot_predictions(PREDICTIONS_TRAIN[curr_model], PREDICTIONS_TEST[curr_model], y)
         return fig
     
+    @APP.callback(Output('input_exp_idx', 'value'),
+                  Input('graph_predictions', 'clickData'))
+    def update_pred_fig(clickData):
+        idx = clickData['points'][0]['x']
+        return idx
+    
+    return out
+
+###################### Preprocessing Tab ########################
+
+def _add_preprocessing_tab(input_df):
+    
+    out = dcc.Tab(label='Preprocessing', children=[
+        dcc.Tabs([
+            #__add_violin_distribution_tab(input_df),
+            ___add_violin_distribution_custom(input_df),
+            #__add_feature_correlation_after_processing_tab(input_df),
+            ___add_corr_after_processing_tab(input_df),
+            #__add_outlier_after_processing_tab(input_df),
+            
+        ])
+    ])
+    
+    return out
+
+############## Violin Distribution ##################
+
+def __add_violin_distribution_tab(input_df):
+    if MODEL_TYPE == 'C':
+        out = dcc.Tab(label='Violin Distributions', children=[
+            dcc.Tabs([
+                ___add_violin_distribution_important_features(input_df),
+#                ___add_violin_distribution_class_based(input_df),
+                ___add_violin_distribution_custom(input_df)
+            ])
+        ])
+    else:
+        out = dcc.Tab(label='Violin Distributions', children=[
+            dcc.Tabs([
+                ___add_violin_distribution_important_features(input_df),
+                ___add_violin_distribution_custom(input_df)
+            ])
+        ])
+    
+    return out
+
+def ___add_violin_distribution_important_features(input_df):
+    out = dcc.Tab(label='Important Features', children=[
+        html.H4('Violin Distribution of Important Features'),
+        html.P("This violin plot shows the probability density of the important features. It also contains a marker for the statistical metrics.", className='par'),
+        dcc.Dropdown(
+            id = "dropdown_violin_features",
+            multi = True,
+        ),
+        dcc.Graph(id="figure_violin_features"),
+    ])
+    
+    @APP.callback(Output('dropdown_violin_features', 'options'),
+                  Output('dropdown_violin_features', 'value'),
+#                  State('checkbox_feature_par', 'value'), # TODO add parameters parametertab
+#                  State('checkbox_prep_par', 'value'),
+#                  State('input_fa_par', 'value'),  
+#                  State('dropdown_agg_par', 'value'),                
+#                  State('input_sr_par', 'value'),
+#                  State('dropdown_grad_par', 'value'),
+ #                 State('dropdown_features_par', 'value'),
+                  State('dropdown_target_par', 'value'),
+                  Input('compute_button', 'n_clicks'))
+    def update_violin_distribution_important_features_tab(target, n_clicks):   
+        
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        # TDO add strategy parameter and lags in parameter tab and give them to split function
+        X, y = split_X_y(input_df, target)
+        
+        options = [{'label': col, 'value': col} for col in X.columns]
+        value = X.columns[:2]
+        
+        return options, value
+    
+    @APP.callback(Output('figure_violin_features', 'figure'),
+                  State('dropdown_target_par', 'value'),
+                  Input('dropdown_violin_features', 'value'))
+    def _update_violin_plot_features(target, values):
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        # TDO add strategy parameter and lags in parameter tab and give them to split function
+        X, y = split_X_y(input_df, target)
+        
+        df = X[values] # TODO also only use important features
+        out = plot_violin_distribution(df)
+        return out
+    
+    return out
+
+def ___add_violin_distribution_class_based():
+    if MODEL_TYPE == 'C':
+        out = dcc.Tab(label='Class-based', children=[
+            html.H4('Class-based Violin Distribution'),
+            html.P("This violin plot shows the probability density of every feature based on the classes. These classes will be useful for classification tasks if the distribution of the same attributes varies widely across classes", className='par'),
+            html.Label('Feature:', className='dropdown_label'),
+            dcc.Dropdown(
+                id = "dropdown_class_based_violin_features",
+                options = [{'label': col, 'value': col} for col in X.columns],
+                value = X.columns[0],
+                multi = False,
+                clearable=False,
+                className='dropdown',
+                placeholder="Select a feature...",
+            ),
+            dcc.Graph(id="figure_class_based_violin_features"),
+        ])
+    else:
+        out = None
+        
+    @app.callback(Output('figure_class_based_violin_features', 'figure'),
+                 [Input('dropdown_class_based_violin_features', 'value')])
+    def _update_class_based_violin_plot_features(value):
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        # TDO add strategy parameter and lags in parameter tab and give them to split function
+        X, y = split_X_y(input_df, target)
+        
+#        le_name_mapping = _check_data() # TODO does le_name_mapping and check data still makes sense after different function for preprocessing?
+        
+        df = X[values]
+        out = get_class_based_violin_distribution(X, y, value, le_name_mapping, OUTPUT_PATH)
+
+        return out    
+        
+    return out
+
+def ___add_violin_distribution_custom(input_df):
+    out = dcc.Tab(label='Violin Distribution', children=[
+        html.H4('Violin Distribution of Custom Features'),
+        html.P("This violin plot shows the probability density of every feature.", className='par'),
+        dcc.Dropdown(
+            id = "dropdown_violin_custom_features",
+            multi = True,
+        ),
+        dcc.Graph(id="figure_violin_custom_features"),
+    ])
+    
+    @APP.callback(Output('dropdown_violin_custom_features', 'options'),
+                  Output('dropdown_violin_custom_features', 'value'),
+#                  State('checkbox_feature_par', 'value'), # TODO add parameters parametertab
+#                  State('checkbox_prep_par', 'value'),
+#                  State('input_fa_par', 'value'),  
+#                  State('dropdown_agg_par', 'value'),                
+#                  State('input_sr_par', 'value'),
+#                  State('dropdown_grad_par', 'value'),
+ #                 State('dropdown_features_par', 'value'),
+                  State('dropdown_target_par', 'value'),
+                  Input('compute_button', 'n_clicks'))
+    def update_violin_distribution_important_features_tab(target, n_clicks):   
+        
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        # TDO add strategy parameter and lags in parameter tab and give them to split function
+        X, y = split_X_y(input_df, target)
+        
+        options = [{'label': col, 'value': col} for col in X.columns]
+        value = X.columns[:2]
+        
+        return options, value
+    
+    @APP.callback(Output('figure_violin_custom_features', 'figure'),
+                  State('dropdown_target_par', 'value'),
+                  Input('dropdown_violin_custom_features', 'value'))
+    def _update_violin_plot_custom_features(target, values):
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        # TDO add strategy parameter and lags in parameter tab and give them to split function
+        X, y = split_X_y(input_df, target)
+        
+        df = X[values]
+        out = plot_violin_distribution(df)
+        return out
+    
+    return out
+
+
+############## Korrelations after Processing ##################
+
+def __add_feature_correlation_after_processing_tab(input_df):
+    out = dcc.Tab(label='Correlations', children=[
+        dcc.Tabs([
+            ___add_corr_after_processing_tab(input_df),
+            #___add_pcmi_tab() # TODO add pcmci!!!!! only after/before preprocessing bc it takes very long
+        ])
+    ])
+    
+    return out
+
+def ___add_corr_after_processing_tab(input_df):
+#    df_heatmap_all = input_df.corr()
+#    df_heatmap = df_heatmap_all.reset_index().melt(id_vars='index').query(f'(value >={99/100})&(value<1)')
+    ticks = np.arange(1, 100)
+#    cols = input_df.columns[:4]
+#    fig = px.imshow(input_df[cols].corr())
+    
+    out = dcc.Tab(label='Correlation Matrix', children=[
+        html.H2('Correlation Matrix'),
+        html.P('Here it shows the correlations between features of the input data. Features with constand or too less values are filtered out.', className='par'),
+        dcc.Dropdown(id='dropdown_heatmap_after_processing_input', multi=True),
+        dcc.Graph(id='heatmap_after_processing_input'),
+        html.Div([
+            html.P(f'Following feature pairs are over', className='par_corr'),
+            dcc.Dropdown(id="dropdown_corr_after_processing_input", options=[{'label': x , 'value': x} for x in ticks], value=90, multi=False,
+                        className='dropdown_corr', clearable=False),
+            html.P(f'%'),
+            html.P(f'correlated:', className='par_corr'),
+        ], className='par_corr'),
+        html.Div([        
+            dash.dash_table.DataTable(id='table_corr_after_processing_input'),
+        ], className='table'),
+    ])
+    
+    @APP.callback(Output('dropdown_heatmap_after_processing_input', 'options'),
+                  Output('dropdown_heatmap_after_processing_input', 'value'),
+                  Output('dropdown_corr_after_processing_input', 'value'),
+#                  State('checkbox_feature_par', 'value'), # TODO add parameters parametertab especially selected features
+#                  State('checkbox_prep_par', 'value'),
+#                  State('input_fa_par', 'value'),  
+#                  State('dropdown_agg_par', 'value'),                
+#                  State('input_sr_par', 'value'),
+#                  State('dropdown_grad_par', 'value'),
+ #                 State('dropdown_features_par', 'value'),
+#                  State('dropdown_heatmap_after_processing_input', 'value'),
+                  Input('compute_button', 'n_clicks'))
+    def update_corr_after_processing_tab(n_clicks):           
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        output_df = input_df
+        
+        options = [{'label': col, 'value': col} for col in output_df.columns]
+        value = output_df.columns[:4]
+        
+        return options, value, 90
+    
+    @APP.callback(Output('heatmap_after_processing_input', 'figure'),
+                 Input('dropdown_heatmap_after_processing_input', 'value'))
+    def update_heatmap_chart(cols):
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        output_df = input_df
+        
+        fig = px.imshow(output_df[cols].corr())
+        return fig
+    
+    @APP.callback(Output('table_corr_after_processing_input', 'data'),
+                  Output('table_corr_after_processing_input', 'columns'),
+                  Input('dropdown_corr_after_processing_input', 'value'))
+    def update_corr_pairs(x):
+        # TODO do preprocessing with callback params (also find a way to avoid doing this in every callback)
+        output_df = input_df
+        
+        df_heatmap = input_df.corr()
+        df_heatmap = df_heatmap.reset_index().melt(id_vars='index').query(f'(value >={int(x)/100})&(value<1)')
+        data = df_heatmap.to_dict('records')
+        columns = [{'name': i, 'id': i} for i in df_heatmap.columns]
+        
+        return data, columns
+    
+    return out
+
+############## Outlier Tab after Processing ##################
+
+def __add_outlier_after_processing_tab(input_df): # TODO add representation of outliers
+    
+    out = dcc.Tab(label='Outlier', children=[
+        html.H2('Outlier'),
+    ])
+    
     return out
 
 ###################### Model Tab ########################
+
 def _add_model_comparison_tab(input_df):
     
     out = dcc.Tab(label='Model Comparison', children=[
@@ -670,6 +960,18 @@ def _add_model_comparison_tab(input_df):
     
     return out
 
+###################### Summary Tab ########################
+
+def _add_summary_tab():
+    
+    out = dcc.Tab(label='Summary', children=[
+        html.H2('Summary'),
+    ])
+    
+   
+    
+    return out
+
 ######################### Helper #########################
 
 def add_dataframe_table(df: pd.DataFrame, id=None, className='table'):
@@ -701,9 +1003,9 @@ def plot_predictions(pred_train, pred_test, y):
     x_test = list(range(len(pred_train), len(y)))
     x_train = list(range(len(pred_train)))
     
-    fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Tatsächlich'))
-    fig.add_trace(go.Scatter(x=x_train, y=pred_train, mode='lines', name='Trainings-Vorhersage'))
-    fig.add_trace(go.Scatter(x=x_test, y=pred_test, mode='lines', name='Test-Vorhersage'))
+    fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='real'))
+    fig.add_trace(go.Scatter(x=x_train, y=pred_train, mode='lines', name='Train-prediction'))
+    fig.add_trace(go.Scatter(x=x_test, y=pred_test, mode='lines', name='Test-prediction'))
 
     return fig
 
@@ -717,4 +1019,57 @@ def plot_feature_importance(feature_importance):
 
     data = [trace1]
     fig = go.Figure(data=data)
+    return fig
+
+def plot_violin_distribution(df, output_path=None):
+    # TODO move to df + split in computation and visualization
+    tmp = (df-df.mean())/df.std()
+    tmp2 = []
+
+    for i in tmp.columns:
+        tmp3 = pd.DataFrame(columns = ['value', 'fname'])
+        tmp3['value'] = tmp[i].values
+        tmp3['fname'] = i#[i for j in range(tmp3.shape[0])]
+
+        tmp2.append(tmp3)
+
+    violin_distribution = pd.concat(tmp2, axis=0)
+    
+    fig = go.Figure()
+    for i in df.columns:
+        fig.add_trace(go.Violin(y=violin_distribution['value'][violin_distribution['fname'] == i], x= violin_distribution['fname'][violin_distribution['fname'] == i],
+              name = i,
+              box_visible=True, 
+              #line_color='black',
+              meanline_visible=True, #fillcolor='lightseagreen', 
+              #opacity=0.6
+              ))
+    
+    if output_path:
+        fig.write_image(output_path + '/plots/violin_features.webp')
+        
+    return fig
+
+def plot_class_based_violin_distribution(X, y, col, le_name_mapping, output_path=None):
+    # TODO move to df + split in computation and visualization
+    inv_le_name_mapping = {}
+    for i, j in le_name_mapping.items():
+        inv_le_name_mapping[j] = i
+    fig = go.Figure()
+
+    for i in inv_le_name_mapping.keys():
+        fig.add_trace(go.Violin(y=X[col][y == i], 
+                                x= pd.Series(y[y == i]).map(lambda x: inv_le_name_mapping[x]),
+                                name = inv_le_name_mapping[i],
+                                box_visible=True, 
+                                points='all',
+                                #line_color='black',
+                                meanline_visible=True, 
+                                #fillcolor='lightseagreen', 
+                                #legendgroup='group',
+                                showlegend=True))
+
+    if output_path:
+        fig.write_image(output_path + '/plots/class_based_distribution/' + col.replace('/', '') + '.webp')
+    
     return fig

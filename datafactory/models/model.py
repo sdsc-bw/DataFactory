@@ -19,6 +19,7 @@ from fastai.vision.all import *
 import gc
 import time
 import copy
+from IPython.display import clear_output
 
 sys.path.append('../util')
 from ..util.constants import logger
@@ -188,10 +189,16 @@ class TsaiModel(FastAIModel):
     
     def __init__(self, X: pd.Series, y: pd.Series, model_type: str, params:Dict=dict(), metric_average='micro', device='gpu'):
         super(TsaiModel, self).__init__(model_type, params=params, metric_average=metric_average, device=device)
-        self.X = X.to_numpy()
+        if type(X) is not np.ndarray:
+            self.X = X.to_numpy()
+        else:
+            self.X = X
         if self.X.ndim == 2:
             self.X = self.X.reshape(self.X.shape[0], self.X.shape[1], 1)
-        self.y = y.to_numpy()
+        if type(y) is not np.ndarray:
+            self.y = y.to_numpy()
+        else:
+            self.y = y
         
         ############## process params #################
         self.transforms = get_transforms_ts(params.get('batch_tfms', []))

@@ -72,3 +72,14 @@
 .div_hidden {
     display: None;
 }
+
+.input_with_label{
+   display: inline-block;
+   margin-right: 20px;
+   margin-bottom: 10px;
+   min-width: 200px
+}
+
+.input_label {
+    display: inline-block;
+}

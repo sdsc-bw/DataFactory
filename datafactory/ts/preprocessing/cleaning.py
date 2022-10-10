@@ -39,14 +39,14 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_thre
     
     data = data.replace([np.inf, -np.inf], np.nan)
 
-    print(f'Remove columns with half of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=nan_threshold].to_list()} \n', file = file)
+    print(f'Remove columns with over {nan_threshold * 100}% of NAN-values: {data.columns[(data.isna().sum()/data.shape[0])>=nan_threshold].to_list()} \n', file = file)
     data = data.dropna(axis=1, thresh=data.shape[0] * nan_threshold)
     
     print(f'Check constant columns: {data.columns[(data == data.iloc[0]).all()].to_list()} \n', file = file)
-    if data.columns[(data == data.iloc[0]).all()] > 0:
+    if len(data.columns[(data == data.iloc[0]).all()]) > 0:
         print('There exist columns with constant value, which will be removed from the feature set')
-        data = data.loc[:, (data != data.iloc[0]).any()]
-
+        data = data.loc[:, (data != data.iloc[0]).any()]    
+        
     if data.isna().sum().sum() > 0:
         
         if strategy == 'model':
@@ -64,7 +64,7 @@ def clean_data(data: pd.DataFrame, strategy: str='model', file = None, corr_thre
             logger.warn(f'Error appeared while fitting. Use constant filling instead')
             tmp = data.fillna(0)
             
-#         data = pd.DataFrame(tmp, columns=data.columns, index=data.index)
+        data = pd.DataFrame(tmp, columns=data.columns, index=data.index)
         
     if corr_threshold:      
         data, _ = extract_large_correlation(data, threshold=corr_threshold, remove=False, verbose=verbose)    
@@ -95,15 +95,16 @@ def convert_data_comma_and_set_type_float(data: pd.DataFrame, verbose: bool = Tr
     """
     Konvertiert Kommazahlen eines Dataframes in die englische Schreibweise mit Punkt statt Komma.
     """
-    data = copy.deepcopy(data)
+    tmp = copy.deepcopy(data)
     for i in data.columns:
         try:
-            data[i] = convert_column_comma_and_set_type_float(data[i])
+            tmp[i] = convert_column_comma_and_set_type_float(data[i])
         except:
+            tmp.drop([i], axis=1)
             if verbose:
                 print(f'column {i} is not numerical')
             
-    return data
+    return tmp
 
 def extract_large_correlation(data, threshold=0.9, remove=False, verbose = True):
     # show corr == 1

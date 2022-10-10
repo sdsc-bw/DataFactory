@@ -7,12 +7,12 @@ from hyperopt import hp
 
 ######## sklearn
 std_decision_tree_c = {'model': 'decision_tree', 
-                      'max_depth': hp.quniform('max_depth_dt', 1, 10, 1), 
+                      'max_depth': hp.choice('max_depth_dt', [1, 2, 3, 5, 10, 20, 50]), 
                       'criterion': hp.choice('criterion_dt', ['gini', 'entropy']), 
                       'min_samples_split': hp.choice('min_samples_split_dt',[2, 3, 5]), 
                       'min_samples_leaf': hp.choice('min_samples_leaf_dt', [1, 2, 4])}
 std_decision_tree_r = {'model': 'decision_tree', 
-                       'max_depth': hp.quniform('max_depth_dt', 1, 10, 1), 
+                       'max_depth': hp.choice('max_depth_dt', [1, 2, 3, 5, 10, 20, 50]), 
                        'criterion': hp.choice('criterion_dt', ['squared_error', 'absolute_error']), 
                        'min_samples_split': hp.choice('min_samples_split_dt',[2, 3, 5]), 
                        'min_samples_leaf': hp.choice('min_samples_leaf_dt', [1, 2, 4])}
